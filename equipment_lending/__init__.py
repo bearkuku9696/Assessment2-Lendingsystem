@@ -1,0 +1,1 @@
+"""Equipment lending API foundation."""
