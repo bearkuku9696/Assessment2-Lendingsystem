@@ -1,1 +1,1 @@
-"""SQLAlchemy table models. Business tables are not defined yet."""
+"""SQLAlchemy user and login session models."""

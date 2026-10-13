@@ -14,8 +14,8 @@ def test_health():
     assert response.json() == {"status": "ok"}
 
 
-def test_only_health_is_exposed():
-    assert set(app.openapi()["paths"]) == {"/health"}
+def test_route_scope():
+    assert set(app.openapi()["paths"]) == {"/health", "/auth/register", "/auth/login", "/auth/me"}
     with TestClient(app) as client:
         assert client.get("/docs").status_code == 200
 

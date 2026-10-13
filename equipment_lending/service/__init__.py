@@ -1,1 +1,1 @@
-"""Business rules and write transaction boundaries. No business logic yet."""
+"""Business rules and write transaction boundaries."""
