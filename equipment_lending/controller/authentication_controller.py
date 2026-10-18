@@ -53,3 +53,24 @@ def get_current_user(
 @router.get("/me", response_model=UserResponse)
 def me(user: Annotated[User, Depends(get_current_user)]):
     return user
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_admin_user(user: CurrentUser) -> User:
+    if user.role != "admin":
+        raise HTTPException(403, "Administrator access is required.")
+    return user
+
+
+AdminUser = Annotated[User, Depends(get_admin_user)]
+
+
+@router.post("/logout", status_code=204)
+def logout(credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer)], service: AuthService):
+    try:
+        service.logout(credentials.credentials)
+    except InvalidToken:
+        raise HTTPException(401, "Invalid or expired access token.", headers={"WWW-Authenticate": "Bearer"}) from None
+    return Response(status_code=204)

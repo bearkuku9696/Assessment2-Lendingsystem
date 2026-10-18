@@ -34,13 +34,13 @@ class AuthenticationService:
         self.users = UserDao(session)
         self.tokens = LoginSessionDao(session)
 
-    def register(self, name: str, email: str, password: str):
+    def register(self, name: str, email: str, password: str, role: str = "member"):
         hashed_password = password_hasher.hash(password)
         try:
             with self.session.begin():
                 if self.users.find_by_email(email):
                     raise EmailAlreadyRegistered
-                user = self.users.create(name, email, hashed_password)
+                user = self.users.create(name, email, hashed_password, role)
         except IntegrityError:
             # The unique constraint also rejects concurrent registrations.
             # Report an email conflict only when that account actually exists.
@@ -61,9 +61,17 @@ class AuthenticationService:
         return token, user
 
     def current_user(self, token: str):
-        user = self.tokens.find_user(
-            sha256(token.encode()).hexdigest(), datetime.now(UTC).replace(tzinfo=None)
-        )
-        if user is None:
-            raise InvalidToken
+        with self.session.begin():
+            user = self.tokens.find_user(
+                sha256(token.encode()).hexdigest(), datetime.now(UTC).replace(tzinfo=None)
+            )
+            if user is None:
+                raise InvalidToken
         return user
+
+    def logout(self, token: str):
+        token_hash = sha256(token.encode()).hexdigest()
+        with self.session.begin():
+            if self.tokens.find_user(token_hash, datetime.now(UTC).replace(tzinfo=None)) is None:
+                raise InvalidToken
+            self.tokens.delete(token_hash)

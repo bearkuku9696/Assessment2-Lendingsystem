@@ -1,73 +1,60 @@
-from flask import abort, flash, g, redirect, render_template, request, url_for
+from typing import Annotated
 
-from ..service import AccessDeniedError, ValidationError
-from . import bp
-from .dependencies import booking_service, equipment_service
-from .security import admin_required, login_required
+from fastapi import APIRouter, Depends, HTTPException
 
-
-@bp.route("/equipment/<int:equipment_id>/book", methods=("GET", "POST"))
-@login_required
-def create_booking(equipment_id):
-    equipment = equipment_service.find_by_id(equipment_id)
-    if equipment is None:
-        abort(404)
-    if request.method == "POST":
-        try:
-            booking_service.create_booking(
-                g.user["id"],
-                equipment_id,
-                request.form.get("start_date", ""),
-                request.form.get("end_date", ""),
-                request.form.get("purpose", ""),
-            )
-        except ValidationError as error:
-            flash(str(error), "error")
-        else:
-            flash("Booking request submitted for staff review.", "success")
-            return redirect(url_for("main.my_bookings"))
-    return render_template("booking_form.html", equipment=equipment)
+from equipment_lending.controller.authentication_controller import AdminUser, CurrentUser
+from equipment_lending.database import DatabaseSession
+from equipment_lending.schema.booking import BookingRequest, BookingResponse
+from equipment_lending.service.booking_service import (
+    AccessDeniedError, BookingCannotBeCancelled, BookingNotFound, BookingService, EquipmentNotFound,
+)
 
 
-@bp.get("/my-bookings")
-@login_required
-def my_bookings():
-    return render_template(
-        "my_bookings.html", bookings=booking_service.find_for_user(g.user["id"])
-    )
+router = APIRouter(tags=["Bookings"])
 
 
-@bp.post("/bookings/<int:booking_id>/cancel")
-@login_required
-def cancel_booking(booking_id):
+def get_booking_service(session: DatabaseSession):
+    return BookingService(session)
+
+
+BookingDependency = Annotated[BookingService, Depends(get_booking_service)]
+
+
+@router.post("/bookings", response_model=BookingResponse, status_code=201)
+def create_booking(data: BookingRequest, user: CurrentUser, service: BookingDependency):
     try:
-        booking_service.cancel_booking(booking_id, g.user["id"])
+        return service.create_booking(user.id, data)
+    except EquipmentNotFound:
+        raise HTTPException(404, "Equipment was not found.") from None
+
+
+@router.get("/my-bookings", response_model=list[BookingResponse])
+def my_bookings(user: CurrentUser, service: BookingDependency):
+    return service.find_for_user(user.id)
+
+
+@router.get("/bookings/{booking_id}", response_model=BookingResponse)
+def booking_detail(booking_id: int, user: CurrentUser, service: BookingDependency):
+    try:
+        return service.find_for_owner(booking_id, user.id)
+    except BookingNotFound:
+        raise HTTPException(404, "Booking was not found.") from None
     except AccessDeniedError:
-        abort(403)
-    except ValidationError as error:
-        flash(str(error), "error")
-    else:
-        flash("Booking cancelled.", "success")
-    return redirect(url_for("main.my_bookings"))
+        raise HTTPException(403, "You can only view your own bookings.") from None
 
 
-@bp.get("/admin/bookings")
-@admin_required
-def admin_bookings():
-    return render_template(
-        "admin_bookings.html", bookings=booking_service.find_all()
-    )
-
-
-@bp.post("/admin/bookings/<int:booking_id>/<new_status>")
-@admin_required
-def update_booking_status(booking_id, new_status):
+@router.post("/bookings/{booking_id}/cancel", response_model=BookingResponse)
+def cancel_booking(booking_id: int, user: CurrentUser, service: BookingDependency):
     try:
-        booking_service.change_status(
-            booking_id, new_status, request.form.get("admin_note", "")
-        )
-    except ValidationError as error:
-        flash(str(error), "error")
-    else:
-        flash(f"Booking changed to {new_status}.", "success")
-    return redirect(url_for("main.admin_bookings"))
+        return service.cancel_booking(booking_id, user.id)
+    except BookingNotFound:
+        raise HTTPException(404, "Booking was not found.") from None
+    except AccessDeniedError:
+        raise HTTPException(403, "You can only cancel your own bookings.") from None
+    except BookingCannotBeCancelled:
+        raise HTTPException(409, "Only pending or approved bookings can be cancelled.") from None
+
+
+@router.get("/admin/bookings", response_model=list[BookingResponse])
+def admin_bookings(user: AdminUser, service: BookingDependency):
+    return service.find_all()

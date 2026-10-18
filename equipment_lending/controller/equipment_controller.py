@@ -1,56 +1,28 @@
-from flask import abort, flash, redirect, render_template, request, url_for
+from typing import Annotated
 
-from . import bp
-from .dependencies import equipment_service
-from .security import admin_required
+from fastapi import APIRouter, Depends
 
-
-def equipment_form_values():
-    fields = ("name", "category", "description", "location", "status")
-    return tuple(request.form[field].strip() for field in fields)
+from equipment_lending.controller.authentication_controller import AdminUser, CurrentUser
+from equipment_lending.database import DatabaseSession
+from equipment_lending.schema.equipment import EquipmentRequest, EquipmentResponse
+from equipment_lending.service.equipment_service import EquipmentService
 
 
-@bp.get("/")
-def index():
-    search = request.args.get("search", "").strip()
-    category = request.args.get("category", "").strip()
-    status = request.args.get("status", "").strip()
-    return render_template(
-        "index.html",
-        equipment=equipment_service.find_all(search, category, status),
-        categories=equipment_service.find_categories(),
-        search=search,
-        selected_category=category,
-        selected_status=status,
-    )
+router = APIRouter(tags=["Equipment"])
 
 
-@bp.get("/admin/equipment")
-@admin_required
-def admin_equipment():
-    return render_template(
-        "admin_equipment.html", equipment=equipment_service.find_all()
-    )
+def get_equipment_service(session: DatabaseSession):
+    return EquipmentService(session)
 
 
-@bp.route("/admin/equipment/new", methods=("GET", "POST"))
-@admin_required
-def add_equipment():
-    if request.method == "POST":
-        equipment_service.create(*equipment_form_values())
-        flash("Equipment added.", "success")
-        return redirect(url_for("main.admin_equipment"))
-    return render_template("equipment_form.html", item=None)
+EquipmentDependency = Annotated[EquipmentService, Depends(get_equipment_service)]
 
 
-@bp.route("/admin/equipment/<int:equipment_id>/edit", methods=("GET", "POST"))
-@admin_required
-def edit_equipment(equipment_id):
-    item = equipment_service.find_by_id(equipment_id)
-    if item is None:
-        abort(404)
-    if request.method == "POST":
-        equipment_service.update(equipment_id, *equipment_form_values())
-        flash("Equipment updated.", "success")
-        return redirect(url_for("main.admin_equipment"))
-    return render_template("equipment_form.html", item=item)
+@router.get("/equipment", response_model=list[EquipmentResponse])
+def list_equipment(user: CurrentUser, service: EquipmentDependency):
+    return service.find_all()
+
+
+@router.post("/admin/equipment", response_model=EquipmentResponse, status_code=201)
+def create_equipment(data: EquipmentRequest, user: AdminUser, service: EquipmentDependency):
+    return service.create(data.name)

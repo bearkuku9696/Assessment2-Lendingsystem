@@ -2,30 +2,14 @@ from datetime import datetime
 from hashlib import sha256
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
 
-from equipment_lending import database, init_db
-from equipment_lending.main import app
+from equipment_lending import init_db
 from equipment_lending.model.login_session import LoginSession
 from equipment_lending.model.user import User
 
 
 ACCOUNT = {"name": "Yu Li", "email": "yu@example.org", "password": "Password123!"}
-
-
-@pytest.fixture
-def auth(tmp_path, monkeypatch):
-    engine = create_engine(f"sqlite:///{tmp_path / 'auth.db'}", connect_args={"check_same_thread": False})
-    event.listen(engine, "connect", database.enable_foreign_keys)
-    monkeypatch.setattr(init_db, "engine", engine)
-    init_db.init_db()
-    factory = sessionmaker(bind=engine, expire_on_commit=False)
-    monkeypatch.setattr(database, "SessionLocal", factory)
-    with TestClient(app) as client:
-        yield client, factory
-    engine.dispose()
 
 
 def login(client, **changes):

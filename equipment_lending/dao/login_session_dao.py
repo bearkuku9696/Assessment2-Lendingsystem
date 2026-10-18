@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from equipment_lending.model.login_session import LoginSession
@@ -13,6 +13,9 @@ class LoginSessionDao:
 
     def create(self, token_hash: str, user_id: int, expires_at: datetime):
         self.session.add(LoginSession(token_hash=token_hash, user_id=user_id, expires_at=expires_at))
+
+    def delete(self, token_hash: str):
+        self.session.execute(delete(LoginSession).where(LoginSession.token_hash == token_hash))
 
     def find_user(self, token_hash: str, now: datetime) -> User | None:
         return self.session.scalar(

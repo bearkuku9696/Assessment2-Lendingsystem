@@ -1,119 +1,32 @@
-from ..db import get_db
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session
+
+from equipment_lending.model.booking import Booking
 
 
 class BookingDao:
-    OVERDUE_SQL = """
-        CASE
-            WHEN bookings.status = 'borrowed'
-             AND bookings.end_date < date('now') THEN 1
-            ELSE 0
-        END AS is_overdue
-    """
+    def __init__(self, session: Session):
+        self.session = session
 
-    def find_by_user_id(self, user_id):
-        return get_db().execute(
-            f"""
-            SELECT bookings.*, equipment.name AS equipment_name,
-                   equipment.category AS equipment_category,
-                   {self.OVERDUE_SQL}
-            FROM bookings
-            JOIN equipment ON equipment.id = bookings.equipment_id
-            WHERE bookings.user_id = ?
-            ORDER BY bookings.created_at DESC
-            """,
-            (user_id,),
-        ).fetchall()
+    def find_by_user_id(self, user_id: int):
+        return self.session.scalars(select(Booking).where(Booking.user_id == user_id).order_by(Booking.id.desc())).all()
 
     def find_all(self):
-        return get_db().execute(
-            f"""
-            SELECT bookings.*, equipment.name AS equipment_name,
-                   users.name AS user_name, users.email AS user_email,
-                   {self.OVERDUE_SQL}
-            FROM bookings
-            JOIN equipment ON equipment.id = bookings.equipment_id
-            JOIN users ON users.id = bookings.user_id
-            ORDER BY
-                CASE bookings.status WHEN 'pending' THEN 0 ELSE 1 END,
-                bookings.created_at DESC
-            """
-        ).fetchall()
+        return self.session.scalars(select(Booking).order_by(Booking.id.desc())).all()
 
-    def find_by_id(self, booking_id):
-        return get_db().execute(
-            "SELECT * FROM bookings WHERE id = ?", (booking_id,)
-        ).fetchone()
+    def find_by_id(self, booking_id: int):
+        return self.session.get(Booking, booking_id)
 
-    def has_conflict(self, equipment_id, start_date, end_date):
-        return get_db().execute(
-            """
-            SELECT 1 FROM bookings
-            WHERE equipment_id = ?
-              AND status IN ('approved', 'borrowed')
-              AND start_date <= ?
-              AND end_date >= ?
-            """,
-            (equipment_id, end_date, start_date),
-        ).fetchone() is not None
+    def create(self, user_id: int, equipment_id: int, start_date, end_date, purpose: str):
+        booking = Booking(user_id=user_id, equipment_id=equipment_id, start_date=start_date,
+                          end_date=end_date, purpose=purpose)
+        self.session.add(booking)
+        self.session.flush()
+        return booking
 
-    def create(self, user_id, equipment_id, start_date, end_date, purpose):
-        db = get_db()
-        cursor = db.execute(
-            """
-            INSERT INTO bookings (user_id, equipment_id, start_date, end_date, purpose)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (user_id, equipment_id, start_date, end_date, purpose),
+    def cancel(self, booking_id: int, user_id: int) -> bool:
+        result = self.session.execute(
+            update(Booking).where(Booking.id == booking_id, Booking.user_id == user_id,
+                                  Booking.status.in_(("pending", "approved"))).values(status="cancelled")
         )
-        db.commit()
-        return cursor.lastrowid
-
-    def update_status(self, booking_id, status, admin_note=""):
-        timestamp_column = {
-            "borrowed": "collected_at",
-            "returned": "returned_at",
-        }.get(status)
-        timestamp_update = (
-            f", {timestamp_column} = CURRENT_TIMESTAMP" if timestamp_column else ""
-        )
-
-        db = get_db()
-        db.execute(
-            f"""
-            UPDATE bookings
-            SET status = ?, admin_note = ?{timestamp_update}
-            WHERE id = ?
-            """,
-            (status, admin_note, booking_id),
-        )
-        db.commit()
-
-    def approve_if_available(self, booking, admin_note=""):
-        db = get_db()
-        db.execute("BEGIN IMMEDIATE")
-        conflict = db.execute(
-            """
-            SELECT 1 FROM bookings
-            WHERE equipment_id = ?
-              AND status IN ('approved', 'borrowed')
-              AND start_date <= ?
-              AND end_date >= ?
-              AND id != ?
-            """,
-            (
-                booking["equipment_id"],
-                booking["end_date"],
-                booking["start_date"],
-                booking["id"],
-            ),
-        ).fetchone()
-        if conflict:
-            db.rollback()
-            return False
-
-        db.execute(
-            "UPDATE bookings SET status = 'approved', admin_note = ? WHERE id = ?",
-            (admin_note, booking["id"]),
-        )
-        db.commit()
-        return True
+        return result.rowcount == 1

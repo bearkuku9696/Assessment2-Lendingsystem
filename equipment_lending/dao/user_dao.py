@@ -11,8 +11,8 @@ class UserDao:
     def find_by_email(self, email: str) -> User | None:
         return self.session.scalar(select(User).where(User.email == email))
 
-    def create(self, name: str, email: str, password_hash: str) -> User:
-        user = User(name=name, email=email, password_hash=password_hash, role="member")
+    def create(self, name: str, email: str, password_hash: str, role: str = "member") -> User:
+        user = User(name=name, email=email, password_hash=password_hash, role=role)
         self.session.add(user)
         self.session.flush()
         return user
