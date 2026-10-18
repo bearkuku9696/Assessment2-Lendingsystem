@@ -13,6 +13,10 @@ class EquipmentNotFound(Exception):
     pass
 
 
+class EquipmentUnavailable(Exception):
+    pass
+
+
 class AccessDeniedError(Exception):
     pass
 
@@ -33,6 +37,14 @@ class BookingService:
     def find_all(self):
         return self.bookings.find_all()
 
+    def get_available_equipment(self, equipment_id: int):
+        equipment = self.equipment.find_by_id(equipment_id)
+        if equipment is None:
+            raise EquipmentNotFound
+        if equipment.status != "available":
+            raise EquipmentUnavailable
+        return equipment
+
     def find_for_owner(self, booking_id: int, user_id: int):
         booking = self.bookings.find_by_id(booking_id)
         if booking is None:
@@ -43,8 +55,7 @@ class BookingService:
 
     def create_booking(self, user_id: int, data: BookingRequest):
         with self.session.begin():
-            if self.equipment.find_by_id(data.equipment_id) is None:
-                raise EquipmentNotFound
+            self.get_available_equipment(data.equipment_id)
             booking = self.bookings.create(user_id, data.equipment_id, data.start_date, data.end_date, data.purpose)
         return booking
 

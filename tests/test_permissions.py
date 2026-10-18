@@ -202,3 +202,49 @@ def test_create_admin_rejects_mismatched_passwords(auth, monkeypatch):
         create_admin.main()
     with factory() as session:
         assert session.scalar(select(User)) is None
+
+
+def test_booking_page_and_catalogue_link(booking):
+    client, _, _, record, data = booking
+    path = f"/equipment/{data['equipment_id']}/book"
+    assert f'href="{path}"' in client.get("/").text
+    response = client.get(path)
+    assert response.status_code == 200
+    assert "Book Camera" in response.text
+    assert 'name="start_date"' in response.text
+    assert f'min="{date.today().isoformat()}"' in response.text
+    assert 'name="end_date"' in response.text
+    assert 'name="purpose"' in response.text
+    assert 'id="login-form"' in response.text
+    assert 'id="booking-fields" disabled' in response.text
+    assert client.get("/equipment/9999/book").status_code == 404
+
+
+@pytest.mark.parametrize("status", ["maintenance", "inactive"])
+def test_unavailable_equipment_cannot_be_requested(booking, status):
+    client, factory, headers, _, data = booking
+    with factory.begin() as session:
+        session.get(Equipment, data["equipment_id"]).status = status
+    path = f"/equipment/{data['equipment_id']}/book"
+    assert f'href="{path}"' not in client.get("/").text
+    assert client.get(path).status_code == 409
+    assert client.post("/bookings", json=data, headers=headers["alice"]).status_code == 409
+    with factory() as session:
+        assert len(session.scalars(select(Booking)).all()) == 1
+
+
+@pytest.mark.parametrize("offset,expected", [(-1, 422), (0, 201), (1, 201)])
+def test_booking_start_date_boundary(booking, offset, expected):
+    client, factory, headers, _, data = booking
+    data = {**data, "start_date": (date.today() + timedelta(days=offset)).isoformat(),
+            "end_date": (date.today() + timedelta(days=3)).isoformat(), "purpose": " Workshop "}
+    response = client.post("/bookings", json=data, headers=headers["alice"])
+    assert response.status_code == expected
+    with factory() as session:
+        assert len(session.scalars(select(Booking)).all()) == (2 if expected == 201 else 1)
+        if expected == 201:
+            stored = session.get(Booking, response.json()["id"])
+            assert stored.start_date.isoformat() == data["start_date"]
+            assert stored.end_date.isoformat() == data["end_date"]
+            assert stored.purpose == "Workshop"
+            assert stored.status == "pending"

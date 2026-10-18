@@ -15,7 +15,9 @@ def render_catalogue(equipment, categories, search, category, status):
         f'<div class="tags"><span>{escape(item.category)}</span>'
         f'<span class="status {escape(item.status)}">{escape(item.status)}</span></div>'
         f'<h2>{escape(item.name)}</h2><p>{escape(item.description)}</p>'
-        f'<p class="location">Collection: {escape(item.location)}</p></article>'
+        f'<p class="location">Collection: {escape(item.location)}</p>'
+        + (f'<a class="book" href="/equipment/{item.id}/book">Request booking</a>' if item.status == "available" else "")
+        + '</article>'
         for item in equipment
     )
     if not equipment:
@@ -53,6 +55,7 @@ a {{ color: #23614d; }}
 .tags .maintenance {{ background: #fff0cc; color: #765000; }}
 .tags .inactive {{ background: #e9e9ed; color: #50505a; }}
 .location {{ color: #50665d; margin-bottom: 0; }}
+.book {{ display: inline-block; margin-top: 18px; padding: 10px 16px; background: #23614d; color: white; border-radius: 6px; text-decoration: none; }}
 .empty {{ grid-column: 1 / -1; padding: 28px; border: 1px dashed #879d93; border-radius: 12px; }}
 @media (max-width: 900px) {{ form {{ grid-template-columns: 1fr 1fr; }} .grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }} }}
 @media (max-width: 600px) {{ main {{ padding: 28px 16px; }} form {{ padding: 18px; grid-template-columns: 1fr; }}

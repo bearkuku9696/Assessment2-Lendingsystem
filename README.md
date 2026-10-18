@@ -10,7 +10,9 @@ F06-F07 are implemented through `GET /equipment`: each item includes its ID, nam
 
 F08-F11 are implemented on the public equipment catalogue at `/`: case-insensitive name/description search, category filtering, status filtering, and a responsive card layout. Filters combine and remain selected after submission. The catalogue uses one column on phones, two on tablets, and three on desktop.
 
-Login and registration remain API/Swagger operations. Availability checks, booking approval, collection, and return workflows are outside this implementation.
+F12-F14 are implemented through the catalogue's **Request booking** link. The application page signs in through the existing login API, then accepts a start date, end date, and purpose. The server rejects starts before today, ends on/before the start date, and empty purposes. Successful submissions display the booking ID and pending status.
+
+The application page includes sign-in for existing accounts; registration remains an API/Swagger operation. Booking approval, overlapping-date checks, collection, and return workflows are outside this implementation.
 
 ## Run
 
@@ -120,6 +122,7 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | POST | /admin/equipment | Administrators: create equipment with `{"name": "Camera", "category": "Photography", "location": "Room A", "status": "available"}` |
 | GET | /admin/bookings | Administrators: list all bookings |
 | GET | / | Public responsive equipment catalogue with search and filters |
+| GET | /equipment/{id}/book | Application page with equipment details, sign-in, dates, and purpose |
 | GET | /equipment | Public list with ID, name, description, category, location, and status |
 | POST | /bookings | Signed-in users: create their own pending booking |
 | GET | /my-bookings | Signed-in users: list only their own bookings |
@@ -144,6 +147,8 @@ Create equipment as an administrator first. Then log in as a member and submit a
 ```
 
 Use dates appropriate to when you run this example. The server derives the owner from the login token; supplying `user_id` or `status` returns 422. Other users cannot read or cancel the booking (403). Missing equipment/bookings return 404. Cancelling a borrowed, returned, rejected, or already cancelled booking returns 409. Administrator listings can view all bookings; the owner-only endpoints retain their ownership checks for every role.
+
+To apply in the browser, open the catalogue, choose an available item, click **Request booking**, and sign in with an existing account. Fill in the two dates and a purpose, then submit. Maintenance/inactive equipment cannot be requested (409), including when its status changes before submission. Date validation uses the application server's current date, as in the reference project. The page keeps the access token only in memory; refreshing requires signing in again. It never stores the password. A successful request disables the form and shows a confirmation.
 
 ## Tests
 

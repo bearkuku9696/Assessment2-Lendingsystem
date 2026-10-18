@@ -1,13 +1,16 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 
 from equipment_lending.controller.authentication_controller import AdminUser, CurrentUser
 from equipment_lending.database import DatabaseSession
 from equipment_lending.schema.booking import BookingRequest, BookingResponse
 from equipment_lending.service.booking_service import (
     AccessDeniedError, BookingCannotBeCancelled, BookingNotFound, BookingService, EquipmentNotFound,
+    EquipmentUnavailable,
 )
+from equipment_lending.views.booking import render_booking_form
 
 
 router = APIRouter(tags=["Bookings"])
@@ -20,12 +23,25 @@ def get_booking_service(session: DatabaseSession):
 BookingDependency = Annotated[BookingService, Depends(get_booking_service)]
 
 
+@router.get("/equipment/{equipment_id}/book", response_class=HTMLResponse)
+def booking_page(equipment_id: int, service: BookingDependency):
+    try:
+        equipment = service.get_available_equipment(equipment_id)
+    except EquipmentNotFound:
+        raise HTTPException(404, "Equipment was not found.") from None
+    except EquipmentUnavailable:
+        raise HTTPException(409, "This equipment is not currently available for booking.") from None
+    return HTMLResponse(render_booking_form(equipment), headers={"Cache-Control": "no-store"})
+
+
 @router.post("/bookings", response_model=BookingResponse, status_code=201)
 def create_booking(data: BookingRequest, user: CurrentUser, service: BookingDependency):
     try:
         return service.create_booking(user.id, data)
     except EquipmentNotFound:
         raise HTTPException(404, "Equipment was not found.") from None
+    except EquipmentUnavailable:
+        raise HTTPException(409, "This equipment is not currently available for booking.") from None
 
 
 @router.get("/my-bookings", response_model=list[BookingResponse])
