@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Create an account{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block navigation %}<a href="/">← Equipment catalogue</a>{% endblock %}
+{% block content %}
+<section class="panel">
+  <p class="eyebrow">Join the service</p>
+  <h1>Create an account</h1>
+  <p>We collect only the details needed to manage your bookings.</p>
+  <form id="auth-form" data-action="/auth/register" data-next="{{ next_path }}">
+    <label>Name<input name="name" autocomplete="name" maxlength="100" required></label>
+    <label>Email address<input type="email" name="email" autocomplete="email" required></label>
+    <label>Password<input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="128" required></label>
+    <button type="submit">Create account</button>
+  </form>
+  <p id="error" role="alert"></p>
+  <p><a href="/login?next={{ next_path|urlencode }}">Already have an account? Sign in</a></p>
+  <noscript>JavaScript is required to submit this form.</noscript>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='authentication.js') }}"></script>{% endblock %}

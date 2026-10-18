@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Community Lending{% endblock %} · Community Lending</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body>
+  <header>Community Lending</header>
+  <main class="{% block main_class %}{% endblock %}">
+    {% block navigation %}{% include "account_nav.html" %}{% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}<script src="{{ url_for('static', path='session.js') }}"></script>{% endblock %}
+</body>
+</html>

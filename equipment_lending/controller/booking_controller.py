@@ -1,6 +1,7 @@
+from datetime import date, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from equipment_lending.controller.authentication_controller import AdminUser, CurrentUser
@@ -10,7 +11,7 @@ from equipment_lending.service.booking_service import (
     AccessDeniedError, BookingCannotBeCancelled, BookingNotFound, BookingService, EquipmentNotFound,
     EquipmentUnavailable, BookingDateConflict,
 )
-from equipment_lending.views.booking import render_booking_form
+from equipment_lending.templating import templates
 
 
 router = APIRouter(tags=["Bookings"])
@@ -24,14 +25,18 @@ BookingDependency = Annotated[BookingService, Depends(get_booking_service)]
 
 
 @router.get("/equipment/{equipment_id}/book", response_class=HTMLResponse)
-def booking_page(equipment_id: int, service: BookingDependency):
+def booking_page(request: Request, equipment_id: int, service: BookingDependency):
     try:
         equipment = service.get_available_equipment(equipment_id)
     except EquipmentNotFound:
         raise HTTPException(404, "Equipment was not found.") from None
     except EquipmentUnavailable:
         raise HTTPException(409, "This equipment is not currently available for booking.") from None
-    return HTMLResponse(render_booking_form(equipment), headers={"Cache-Control": "no-store"})
+    today = date.today()
+    return templates.TemplateResponse(request=request, name="booking.html", context={
+        "equipment": equipment, "today": today.isoformat(), "tomorrow": (today + timedelta(days=1)).isoformat(),
+        "next_path": f"/equipment/{equipment_id}/book",
+    }, headers={"Cache-Control": "no-store"})
 
 
 @router.post("/bookings", response_model=BookingResponse, status_code=201)

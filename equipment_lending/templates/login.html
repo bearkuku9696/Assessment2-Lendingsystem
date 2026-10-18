@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block navigation %}<a href="/">← Equipment catalogue</a>{% endblock %}
+{% block content %}
+<section class="panel">
+  <p class="eyebrow">Welcome back</p>
+  <h1>Sign in</h1>
+  <p role="status">{% if registered %}Account created. Sign in to continue.{% endif %}</p>
+  <form id="auth-form" data-action="/auth/login" data-next="{{ next_path }}">
+    <label>Email address<input type="email" name="email" autocomplete="email" required></label>
+    <label>Password<input type="password" name="password" autocomplete="current-password" minlength="1" maxlength="128" required></label>
+    <button type="submit">Sign in</button>
+  </form>
+  <p id="error" role="alert"></p>
+  <p><a href="/register?next={{ next_path|urlencode }}">New here? Create an account</a></p>
+  <noscript>JavaScript is required to submit this form.</noscript>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='authentication.js') }}"></script>{% endblock %}

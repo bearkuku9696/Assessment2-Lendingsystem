@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Equipment catalogue{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="eyebrow">Shared resources, used well</p>
+  <h1>Equipment catalogue</h1>
+  <p>Find equipment for your next community activity.</p>
+</section>
+<form class="filters" method="get" action="/" aria-label="Filter equipment">
+  <label>Search<input type="search" name="search" value="{{ search }}" placeholder="Name or description"></label>
+  <label>Category<select name="category"><option value="">All categories</option>
+    {% for value in categories %}<option value="{{ value }}"{% if value == category %} selected{% endif %}>{{ value }}</option>{% endfor %}
+  </select></label>
+  <label>Status<select name="status"><option value="">All statuses</option>
+    {% for value in ('available', 'maintenance', 'inactive') %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ value }}</option>{% endfor %}
+  </select></label>
+  <button type="submit">Apply filters</button>
+</form>
+<div class="summary"><span>Equipment found: {{ equipment|length }}</span><a href="/">Clear filters</a></div>
+<section class="grid" aria-label="Equipment results">
+  {% for item in equipment %}
+  <article class="card">
+    <div class="tags"><span>{{ item.category }}</span><span class="status {{ item.status }}">{{ item.status }}</span></div>
+    <h2>{{ item.name }}</h2><p>{{ item.description }}</p>
+    <p class="location">Collection: {{ item.location }}</p>
+    {% if item.status == 'available' %}<a class="book" href="/equipment/{{ item.id }}/book">Request booking</a>{% endif %}
+  </article>
+  {% else %}
+  <p class="empty">No equipment matches your search. Try changing or clearing the filters.</p>
+  {% endfor %}
+</section>
+{% endblock %}

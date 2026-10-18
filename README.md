@@ -12,7 +12,7 @@ F08-F11 are implemented on the public equipment catalogue at `/`: case-insensiti
 
 F12-F14 are implemented through the catalogue's **Request booking** link. The application page signs in through the existing login API, then accepts a start date, end date, and purpose. The server rejects starts before today, ends on/before the start date, and empty purposes. Successful submissions display the booking ID and pending status.
 
-The application page includes sign-in for existing accounts; registration remains an API/Swagger operation. Booking approval, collection, and return workflows are outside this implementation.
+Independent `/login` and `/register` pages follow the reference project's forms. Registration collects name, email, and password, then redirects to sign-in. Login returns to the selected equipment application page or the catalogue. Booking approval, collection, and return workflows are outside this implementation.
 
 F14-F18 are enforced when submitting a booking: the start date cannot be before today, the end date must be later than the start date, and equipment must be available. A request overlapping an approved or borrowed booking for the same equipment returns 409 without saving a new row. Date ranges include both endpoints, matching the reference project, so sharing a start/end boundary also conflicts. Pending, cancelled, rejected, and returned bookings do not block new requests. Accepted requests are saved as `pending`; clients cannot set their status.
 
@@ -53,6 +53,9 @@ equipment_lending/
   dao/                    Database queries
   model/                  SQLAlchemy models
   schema/                 Pydantic request and response schemas
+  templating.py           Jinja2 template configuration
+  templates/              HTML pages (base, login, register, catalogue, booking, admin)
+  static/                 Shared CSS and separate authentication/session/booking JavaScript
 tests/                    Framework checks using a temporary database
 run.py                    Local development startup
 ```
@@ -62,6 +65,8 @@ run.py                    Local development startup
 Keep authentication, equipment, and booking code in separate files within each layer, following the original project's naming, for example `authentication_controller.py`, `authentication_service.py`, and `user_dao.py`. Add only files needed by an implemented feature. Register new routers in `main.py`.
 
 Controllers call services and do not execute SQL. Services receive a session and coordinate DAO calls. DAOs use the same session, rather than opening their own connections. Models inherit from `database.Base`.
+
+Pages are ordinary `.html` Jinja2 templates, following the reference project's structure. Controllers pass data to templates; HTML, CSS, and JavaScript are not embedded in Python. Jinja2 escapes displayed values automatically. Install the updated requirements to include Jinja2.
 
 Use `DatabaseSession` as a FastAPI dependency when implementing endpoints. Keep write transaction boundaries in services: use `with session.begin():` around a complete operation. SQLAlchemy propagates failures and rolls the transaction back. DAOs should not independently commit parts of the same operation. The request dependency closes the session and does not automatically commit.
 
@@ -124,6 +129,8 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | POST | /admin/equipment | Administrators: create equipment with `{"name": "Camera", "category": "Photography", "location": "Room A", "status": "available"}` |
 | GET | /admin/bookings | Administrators: list all bookings |
 | GET | / | Public responsive equipment catalogue with search and filters |
+| GET | /login | Sign-in page; returns to the catalogue or selected booking page |
+| GET | /register | Registration page; redirects to sign-in after account creation |
 | GET | /equipment/{id}/book | Application page with equipment details, sign-in, dates, and purpose |
 | GET | /equipment | Public list with ID, name, description, category, location, and status |
 | POST | /bookings | Signed-in users: create their own pending booking |
@@ -150,7 +157,7 @@ Create equipment as an administrator first. Then log in as a member and submit a
 
 Use dates appropriate to when you run this example. The server derives the owner from the login token; supplying `user_id` or `status` returns 422. Other users cannot read or cancel the booking (403). Missing equipment/bookings return 404. Cancelling a borrowed, returned, rejected, or already cancelled booking returns 409. Administrator listings can view all bookings; the owner-only endpoints retain their ownership checks for every role.
 
-To apply in the browser, open the catalogue, choose an available item, click **Request booking**, and sign in with an existing account. Fill in the two dates and a purpose, then submit. Maintenance/inactive equipment cannot be requested (409), including when its status changes before submission. Date validation uses the application server's current date, as in the reference project. The page keeps the access token only in memory; refreshing requires signing in again. It never stores the password. A successful request disables the form and shows a confirmation.
+To apply in the browser, open the catalogue, choose an available item, click **Request booking**, and sign in or create an account. Registration leads to sign-in, which returns to the selected equipment. Fill in the two dates and a purpose, then submit. Maintenance/inactive equipment cannot be requested (409), including when its status changes before submission. Date validation uses the application server's current date, as in the reference project. Browser pages keep the token in `sessionStorage` for the current tab, preserving login across navigation and refresh; passwords are never stored. **Sign out** revokes the token and clears it from the tab. Missing or expired tokens require sign-in. A successful request disables the form and shows a confirmation.
 
 ## Tests
 

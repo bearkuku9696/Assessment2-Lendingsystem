@@ -152,7 +152,7 @@ def test_catalogue_page_filters_and_retains_selection(searchable_equipment):
 def test_catalogue_empty_results_and_escaped_search(searchable_equipment):
     response = searchable_equipment.get("/", params={"search": '<script>alert("x")</script>'})
     assert "No equipment matches your search" in response.text
-    assert "<script>" not in response.text
+    assert '<script>alert("x")</script>' not in response.text
     assert "&lt;script&gt;" in response.text
 
 

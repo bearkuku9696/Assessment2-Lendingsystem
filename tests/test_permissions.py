@@ -215,7 +215,8 @@ def test_booking_page_and_catalogue_link(booking):
     assert f'min="{date.today().isoformat()}"' in response.text
     assert 'name="end_date"' in response.text
     assert 'name="purpose"' in response.text
-    assert 'id="login-form"' in response.text
+    assert f'/login?next=/equipment/{data["equipment_id"]}/book' in response.text
+    assert f'/register?next=/equipment/{data["equipment_id"]}/book' in response.text
     assert 'id="booking-fields" disabled' in response.text
     assert client.get("/equipment/9999/book").status_code == 404
 

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Book {{ equipment.name }}{% endblock %}
+{% block main_class %}booking{% endblock %}
+{% block content %}
+<h1>Book {{ equipment.name }}</h1>
+<p>{{ equipment.description }}</p>
+<p>{{ equipment.category }} · Collection: {{ equipment.location }}</p>
+<section class="panel" id="login-panel">
+  <h2>Sign in to request this equipment</h2>
+  <p><a href="/login?next=/equipment/{{ equipment.id }}/book">Sign in to continue</a>
+    or <a href="/register?next=/equipment/{{ equipment.id }}/book">Create an account</a>.</p>
+</section>
+<p id="identity" role="status"></p>
+<section class="panel">
+  <h2>Borrowing details</h2>
+  <form id="booking-form" data-equipment-id="{{ equipment.id }}">
+    <fieldset id="booking-fields" disabled>
+      <div class="dates">
+        <label>Start date<input name="start_date" type="date" min="{{ today }}" required></label>
+        <label>End date<input name="end_date" type="date" min="{{ tomorrow }}" required></label>
+      </div>
+      <label>Purpose<textarea name="purpose" rows="4" maxlength="1000" required placeholder="Describe the activity and how the equipment will be used."></textarea></label>
+      <button type="submit">Submit request</button>
+    </fieldset>
+  </form>
+  <p id="result" role="status"></p>
+</section>
+<p id="error" role="alert"></p>
+<noscript>JavaScript is required to sign in and submit a booking request.</noscript>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', path='booking.js') }}"></script>
+{% endblock %}

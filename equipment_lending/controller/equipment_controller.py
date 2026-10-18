@@ -1,10 +1,10 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from equipment_lending.controller.authentication_controller import AdminUser
-from equipment_lending.views.catalogue import render_catalogue
+from equipment_lending.templating import templates
 from equipment_lending.database import DatabaseSession
 from equipment_lending.schema.equipment import EquipmentRequest, EquipmentResponse
 from equipment_lending.service.equipment_service import EquipmentService
@@ -27,8 +27,11 @@ def list_equipment(service: EquipmentDependency, search: str = "", category: str
 
 
 @router.get("/", response_class=HTMLResponse)
-def catalogue_page(service: EquipmentDependency, search: str = "", category: str = "", status: StatusFilter = ""):
-    return render_catalogue(service.find_all(search, category, status), service.find_categories(), search, category, status)
+def catalogue_page(request: Request, service: EquipmentDependency, search: str = "", category: str = "", status: StatusFilter = ""):
+    return templates.TemplateResponse(request=request, name="catalogue.html", context={
+        "equipment": service.find_all(search, category, status),
+        "categories": service.find_categories(), "search": search, "category": category, "status": status,
+    })
 
 
 @router.post("/admin/equipment", response_model=EquipmentResponse, status_code=201)

@@ -1,0 +1,8 @@
+<nav class="account-nav" aria-label="Account">
+  <a href="/">Equipment catalogue</a>
+  <a id="sign-in-link" href="/login{% if next_path %}?next={{ next_path }}{% endif %}">Sign in</a>
+  <a id="register-link" href="/register{% if next_path %}?next={{ next_path }}{% endif %}">Create account</a>
+  <span id="session-name"></span>
+  <button id="sign-out" type="button" hidden>Sign out</button>
+</nav>
+<p id="session-error" role="alert"></p>

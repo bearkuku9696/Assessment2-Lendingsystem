@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Booking administration{% endblock %}
+{% block navigation %}<a href="/">Equipment catalogue</a>{% endblock %}
+{% block content %}
+<h1>Booking administration</h1>
+<p>Signed in as {{ user.name }}</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Booking</th><th>Member</th><th>Equipment</th><th>Start</th><th>End</th><th>Purpose</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for booking in bookings %}
+  <tr><td>{{ booking.id }}</td><td>{{ booking.user_id }}</td><td>{{ booking.equipment_id }}</td>
+    <td>{{ booking.start_date }}</td><td>{{ booking.end_date }}</td><td>{{ booking.purpose }}</td><td>{{ booking.status }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
+{% block scripts %}{% endblock %}
