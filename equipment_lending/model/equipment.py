@@ -10,6 +10,7 @@ class Equipment(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(String(2000), default="", server_default="")
     category: Mapped[str] = mapped_column(String(100))
     location: Mapped[str] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(20), default="available")

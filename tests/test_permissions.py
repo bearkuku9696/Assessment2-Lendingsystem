@@ -83,7 +83,7 @@ def test_admin_permissions(accounts, method, path, body):
 
 
 @pytest.mark.parametrize("method,path", [
-    ("get", "/equipment"), ("get", "/my-bookings"), ("get", "/bookings/1"),
+    ("get", "/my-bookings"), ("get", "/bookings/1"),
     ("post", "/bookings/1/cancel"), ("post", "/auth/logout"),
 ])
 def test_protected_routes_require_login(auth, method, path):

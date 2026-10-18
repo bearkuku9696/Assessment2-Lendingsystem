@@ -8,7 +8,9 @@ F01-F05 (users and permissions) are implemented: registration, login/logout, mem
 
 F06-F07 are implemented through `GET /equipment`: each item includes its ID, name, category, location, and status, ordered by category and name. Status values follow the reference project: `available`, `maintenance`, and `inactive`. All three statuses are included in the list.
 
-The main interface is the API and Swagger UI. A full frontend with login forms is not included. Equipment search/filtering, availability checks, booking approval, collection, and return workflows are outside this implementation.
+F08-F11 are implemented on the public equipment catalogue at `/`: case-insensitive name/description search, category filtering, status filtering, and a responsive card layout. Filters combine and remain selected after submission. The catalogue uses one column on phones, two on tablets, and three on desktop.
+
+Login and registration remain API/Swagger operations. Availability checks, booking approval, collection, and return workflows are outside this implementation.
 
 ## Run
 
@@ -23,6 +25,7 @@ python run.py
 ```
 
 - Swagger UI: http://127.0.0.1:8000/docs
+- Equipment catalogue: http://127.0.0.1:8000/
 - OpenAPI schema: http://127.0.0.1:8000/openapi.json
 - Application health: http://127.0.0.1:8000/health
 
@@ -72,6 +75,14 @@ sqlite3 -bail lending.db < migrations/001_equipment_details.sql
 
 Use your configured database path if different. New databases created with `init_db` already contain these fields and must not run this migration.
 
+Existing databases without the equipment description column must run this migration once:
+
+```bash
+sqlite3 -bail lending.db < migrations/002_equipment_description.sql
+```
+
+This preserves existing equipment and adds an optional description, initially empty. New databases already have this column.
+
 ## Registration and login
 
 1. In Swagger UI, use `POST /auth/register` with:
@@ -108,7 +119,8 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | GET | /admin | Administrators: HTML page showing all bookings |
 | POST | /admin/equipment | Administrators: create equipment with `{"name": "Camera", "category": "Photography", "location": "Room A", "status": "available"}` |
 | GET | /admin/bookings | Administrators: list all bookings |
-| GET | /equipment | Signed-in users: list equipment with ID, name, category, location, and status |
+| GET | / | Public responsive equipment catalogue with search and filters |
+| GET | /equipment | Public list with ID, name, description, category, location, and status |
 | POST | /bookings | Signed-in users: create their own pending booking |
 | GET | /my-bookings | Signed-in users: list only their own bookings |
 | GET | /bookings/{id} | Booking owner: view details |
@@ -117,6 +129,8 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 The HTML management page uses the same Bearer header as the API. Use Swagger's authorized `GET /admin` request to inspect its HTML response, or a client that sends that header; entering the URL in a browser without credentials returns 401.
 
 Equipment creation requires nonempty name, category, and location. Status defaults to `available` when omitted; unsupported statuses return 422. `GET /equipment` returns an empty list when no equipment exists.
+
+Equipment creation also accepts an optional `description` (up to 2,000 characters). Both `/` and `/equipment` accept `search`, `category`, and `status` query parameters, for example `/equipment?search=kit&category=Audio&status=maintenance`. Search matches part of the name or description, ignoring case. Categories match exactly; status must be empty, `available`, `maintenance`, or `inactive`. Equipment browsing is public, matching the reference project; booking and administration permissions are unchanged.
 
 Create equipment as an administrator first. Then log in as a member and submit a booking with its equipment ID, today's date or a future date, a later end date, and a nonempty purpose:
 

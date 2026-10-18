@@ -17,7 +17,7 @@ def test_health():
 def test_route_scope():
     assert set(app.openapi()["paths"]) == {
         "/health", "/auth/register", "/auth/login", "/auth/me", "/auth/logout",
-        "/admin", "/admin/bookings", "/admin/equipment", "/equipment",
+        "/", "/admin", "/admin/bookings", "/admin/equipment", "/equipment",
         "/bookings", "/my-bookings", "/bookings/{booking_id}", "/bookings/{booking_id}/cancel",
     }
     with TestClient(app) as client:
