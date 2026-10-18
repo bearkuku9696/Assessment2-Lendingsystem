@@ -11,7 +11,7 @@ class EquipmentService:
     def find_all(self):
         return self.equipment.find_all()
 
-    def create(self, name: str):
+    def create(self, name: str, category: str, location: str, status: str):
         with self.session.begin():
-            equipment = self.equipment.create(name)
+            equipment = self.equipment.create(name, category, location, status)
         return equipment

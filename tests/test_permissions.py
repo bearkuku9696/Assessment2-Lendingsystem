@@ -39,7 +39,9 @@ def accounts(auth):
 @pytest.fixture
 def booking(accounts):
     client, factory, headers = accounts
-    equipment = client.post("/admin/equipment", json={"name": "Camera"}, headers=headers["admin"])
+    equipment = client.post("/admin/equipment", json={
+        "name": "Camera", "category": "Photography", "location": "Room A",
+    }, headers=headers["admin"])
     assert equipment.status_code == 201
     data = {
         "equipment_id": equipment.json()["id"],
@@ -69,7 +71,7 @@ def test_logout_revokes_only_current_session(accounts):
 @pytest.mark.parametrize("method,path,body", [
     ("get", "/admin", None),
     ("get", "/admin/bookings", None),
-    ("post", "/admin/equipment", {"name": "Camera"}),
+    ("post", "/admin/equipment", {"name": "Camera", "category": "Photography", "location": "Room A"}),
 ])
 def test_admin_permissions(accounts, method, path, body):
     client, factory, headers = accounts

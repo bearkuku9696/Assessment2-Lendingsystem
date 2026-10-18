@@ -9,13 +9,13 @@ class EquipmentDao:
         self.session = session
 
     def find_all(self):
-        return self.session.scalars(select(Equipment).order_by(Equipment.id)).all()
+        return self.session.scalars(select(Equipment).order_by(Equipment.category, Equipment.name, Equipment.id)).all()
 
     def find_by_id(self, equipment_id: int):
         return self.session.get(Equipment, equipment_id)
 
-    def create(self, name: str):
-        equipment = Equipment(name=name)
+    def create(self, name: str, category: str, location: str, status: str):
+        equipment = Equipment(name=name, category=category, location=location, status=status)
         self.session.add(equipment)
         self.session.flush()
         return equipment

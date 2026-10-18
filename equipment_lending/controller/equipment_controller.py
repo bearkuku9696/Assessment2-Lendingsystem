@@ -25,4 +25,4 @@ def list_equipment(user: CurrentUser, service: EquipmentDependency):
 
 @router.post("/admin/equipment", response_model=EquipmentResponse, status_code=201)
 def create_equipment(data: EquipmentRequest, user: AdminUser, service: EquipmentDependency):
-    return service.create(data.name)
+    return service.create(data.name, data.category, data.location, data.status)

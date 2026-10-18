@@ -6,7 +6,9 @@ Python 3.11+ with FastAPI, SQLAlchemy 2, and SQLite. This project follows the Co
 
 F01-F05 (users and permissions) are implemented: registration, login/logout, member/admin roles, administrator-only access, and viewing/cancelling only your own bookings. The application includes a protected HTML administration page, minimal equipment creation/listing, and booking creation to support these workflows. No accounts or sample data are preloaded.
 
-The main interface is the API and Swagger UI. A full frontend with login forms is not included. Equipment search/categories, availability checks, booking approval, collection, and return workflows are outside this implementation.
+F06-F07 are implemented through `GET /equipment`: each item includes its ID, name, category, location, and status, ordered by category and name. Status values follow the reference project: `available`, `maintenance`, and `inactive`. All three statuses are included in the list.
+
+The main interface is the API and Swagger UI. A full frontend with login forms is not included. Equipment search/filtering, availability checks, booking approval, collection, and return workflows are outside this implementation.
 
 ## Run
 
@@ -62,6 +64,14 @@ The default database file is `lending.db` in this project. To change it, copy `.
 
 Connections open on first database use. Run `python -m equipment_lending.init_db` before starting the server to create `users`, `login_sessions`, `equipment`, and `bookings`. Existing installations must run this command again to add the equipment and booking tables. This command preserves existing rows and can run again safely. It does not migrate existing schemas. The original project's database remains untouched.
 
+For the previous equipment table containing only `id` and `name`, run the following migration once before starting the updated application. It applies to an empty equipment table (the state of this project's local database before F06-F07). If equipment rows already exist, supply their real category and location values in a data migration first; no placeholder values are generated.
+
+```bash
+sqlite3 -bail lending.db < migrations/001_equipment_details.sql
+```
+
+Use your configured database path if different. New databases created with `init_db` already contain these fields and must not run this migration.
+
 ## Registration and login
 
 1. In Swagger UI, use `POST /auth/register` with:
@@ -96,15 +106,17 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | Method | Path | Access and purpose |
 | --- | --- | --- |
 | GET | /admin | Administrators: HTML page showing all bookings |
-| POST | /admin/equipment | Administrators: create equipment with `{"name": "Camera"}` |
+| POST | /admin/equipment | Administrators: create equipment with `{"name": "Camera", "category": "Photography", "location": "Room A", "status": "available"}` |
 | GET | /admin/bookings | Administrators: list all bookings |
-| GET | /equipment | Signed-in users: list equipment and IDs |
+| GET | /equipment | Signed-in users: list equipment with ID, name, category, location, and status |
 | POST | /bookings | Signed-in users: create their own pending booking |
 | GET | /my-bookings | Signed-in users: list only their own bookings |
 | GET | /bookings/{id} | Booking owner: view details |
 | POST | /bookings/{id}/cancel | Booking owner: cancel a pending or approved booking |
 
 The HTML management page uses the same Bearer header as the API. Use Swagger's authorized `GET /admin` request to inspect its HTML response, or a client that sends that header; entering the URL in a browser without credentials returns 401.
+
+Equipment creation requires nonempty name, category, and location. Status defaults to `available` when omitted; unsupported statuses return 422. `GET /equipment` returns an empty list when no equipment exists.
 
 Create equipment as an administrator first. Then log in as a member and submit a booking with its equipment ID, today's date or a future date, a later end date, and a nonempty purpose:
 
