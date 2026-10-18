@@ -12,7 +12,9 @@ F08-F11 are implemented on the public equipment catalogue at `/`: case-insensiti
 
 F12-F14 are implemented through the catalogue's **Request booking** link. The application page signs in through the existing login API, then accepts a start date, end date, and purpose. The server rejects starts before today, ends on/before the start date, and empty purposes. Successful submissions display the booking ID and pending status.
 
-The application page includes sign-in for existing accounts; registration remains an API/Swagger operation. Booking approval, overlapping-date checks, collection, and return workflows are outside this implementation.
+The application page includes sign-in for existing accounts; registration remains an API/Swagger operation. Booking approval, collection, and return workflows are outside this implementation.
+
+F14-F18 are enforced when submitting a booking: the start date cannot be before today, the end date must be later than the start date, and equipment must be available. A request overlapping an approved or borrowed booking for the same equipment returns 409 without saving a new row. Date ranges include both endpoints, matching the reference project, so sharing a start/end boundary also conflicts. Pending, cancelled, rejected, and returned bookings do not block new requests. Accepted requests are saved as `pending`; clients cannot set their status.
 
 ## Run
 

@@ -17,6 +17,10 @@ class EquipmentUnavailable(Exception):
     pass
 
 
+class BookingDateConflict(Exception):
+    pass
+
+
 class AccessDeniedError(Exception):
     pass
 
@@ -56,6 +60,8 @@ class BookingService:
     def create_booking(self, user_id: int, data: BookingRequest):
         with self.session.begin():
             self.get_available_equipment(data.equipment_id)
+            if self.bookings.has_conflict(data.equipment_id, data.start_date, data.end_date):
+                raise BookingDateConflict
             booking = self.bookings.create(user_id, data.equipment_id, data.start_date, data.end_date, data.purpose)
         return booking
 

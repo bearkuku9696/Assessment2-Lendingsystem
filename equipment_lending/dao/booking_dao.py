@@ -17,6 +17,16 @@ class BookingDao:
     def find_by_id(self, booking_id: int):
         return self.session.get(Booking, booking_id)
 
+    def has_conflict(self, equipment_id: int, start_date, end_date) -> bool:
+        return self.session.scalar(
+            select(Booking.id).where(
+                Booking.equipment_id == equipment_id,
+                Booking.status.in_(("approved", "borrowed")),
+                Booking.start_date <= end_date,
+                Booking.end_date >= start_date,
+            ).limit(1)
+        ) is not None
+
     def create(self, user_id: int, equipment_id: int, start_date, end_date, purpose: str):
         booking = Booking(user_id=user_id, equipment_id=equipment_id, start_date=start_date,
                           end_date=end_date, purpose=purpose)

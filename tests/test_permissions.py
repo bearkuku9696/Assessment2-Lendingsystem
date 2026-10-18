@@ -248,3 +248,72 @@ def test_booking_start_date_boundary(booking, offset, expected):
             assert stored.end_date.isoformat() == data["end_date"]
             assert stored.purpose == "Workshop"
             assert stored.status == "pending"
+
+
+@pytest.mark.parametrize("end_offset,expected", [(1, 422), (2, 422), (3, 201)])
+def test_booking_end_date_must_follow_start(booking, end_offset, expected):
+    client, factory, headers, _, data = booking
+    response = client.post("/bookings", json={
+        **data, "start_date": (date.today() + timedelta(days=2)).isoformat(),
+        "end_date": (date.today() + timedelta(days=end_offset)).isoformat(),
+    }, headers=headers["alice"])
+    assert response.status_code == expected
+    with factory() as session:
+        assert len(session.scalars(select(Booking)).all()) == (2 if expected == 201 else 1)
+
+
+@pytest.mark.parametrize("start_offset,end_offset,expected", [
+    (0, 2, 201), (0, 3, 409), (2, 4, 409), (3, 7, 409),
+    (4, 6, 409), (2, 8, 409), (6, 8, 409), (7, 9, 409), (8, 10, 201),
+])
+def test_approved_booking_date_overlap(booking, start_offset, end_offset, expected):
+    client, factory, headers, record, data = booking
+    with factory.begin() as session:
+        existing = session.get(Booking, record["id"])
+        existing.start_date = date.today() + timedelta(days=3)
+        existing.end_date = date.today() + timedelta(days=7)
+        existing.status = "approved"
+    response = client.post("/bookings", json={
+        **data, "start_date": (date.today() + timedelta(days=start_offset)).isoformat(),
+        "end_date": (date.today() + timedelta(days=end_offset)).isoformat(),
+    }, headers=headers["bob"])
+    assert response.status_code == expected
+    with factory() as session:
+        assert len(session.scalars(select(Booking)).all()) == (2 if expected == 201 else 1)
+        assert session.get(Booking, record["id"]).status == "approved"
+        if expected == 201:
+            assert session.get(Booking, response.json()["id"]).status == "pending"
+        else:
+            assert response.json()["detail"] == "The equipment is already booked for part of this period."
+
+
+@pytest.mark.parametrize("status,expected", [
+    ("approved", 409), ("borrowed", 409), ("pending", 201),
+    ("cancelled", 201), ("rejected", 201), ("returned", 201),
+])
+def test_only_approved_and_borrowed_bookings_block_requests(booking, status, expected):
+    client, factory, headers, record, data = booking
+    with factory.begin() as session:
+        session.get(Booking, record["id"]).status = status
+    response = client.post("/bookings", json=data, headers=headers["alice"])
+    assert response.status_code == expected
+    with factory() as session:
+        assert len(session.scalars(select(Booking)).all()) == (2 if expected == 201 else 1)
+        if expected == 201:
+            assert session.get(Booking, response.json()["id"]).status == "pending"
+
+
+def test_approved_booking_on_other_equipment_does_not_conflict(booking):
+    client, factory, headers, record, data = booking
+    with factory.begin() as session:
+        session.get(Booking, record["id"]).status = "approved"
+        equipment = Equipment(name="Projector", category="Video", location="Room B", status="available")
+        session.add(equipment)
+        session.flush()
+        equipment_id = equipment.id
+    response = client.post("/bookings", json={**data, "equipment_id": equipment_id}, headers=headers["bob"])
+    assert response.status_code == 201
+    with factory() as session:
+        stored = session.get(Booking, response.json()["id"])
+        assert stored.equipment_id == equipment_id
+        assert stored.status == "pending"

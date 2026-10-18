@@ -8,7 +8,7 @@ from equipment_lending.database import DatabaseSession
 from equipment_lending.schema.booking import BookingRequest, BookingResponse
 from equipment_lending.service.booking_service import (
     AccessDeniedError, BookingCannotBeCancelled, BookingNotFound, BookingService, EquipmentNotFound,
-    EquipmentUnavailable,
+    EquipmentUnavailable, BookingDateConflict,
 )
 from equipment_lending.views.booking import render_booking_form
 
@@ -42,6 +42,8 @@ def create_booking(data: BookingRequest, user: CurrentUser, service: BookingDepe
         raise HTTPException(404, "Equipment was not found.") from None
     except EquipmentUnavailable:
         raise HTTPException(409, "This equipment is not currently available for booking.") from None
+    except BookingDateConflict:
+        raise HTTPException(409, "The equipment is already booked for part of this period.") from None
 
 
 @router.get("/my-bookings", response_model=list[BookingResponse])
