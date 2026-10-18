@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if item else 'Add' }} equipment{% endblock %}
+{% block content %}
+<section class="form-panel">
+  <p class="eyebrow">Staff dashboard</p>
+  <h1>{{ 'Edit' if item else 'Add' }} equipment</h1>
+  <form method="post">
+    <div class="two-column">
+      <label>Name<input name="name" required value="{{ item['name'] if item else '' }}"></label>
+      <label>Category<input name="category" required value="{{ item['category'] if item else '' }}"></label>
+    </div>
+    <label>Description<textarea name="description" rows="4" required>{{ item['description'] if item else '' }}</textarea></label>
+    <div class="two-column">
+      <label>Collection location<input name="location" required value="{{ item['location'] if item else '' }}"></label>
+      <label>Status
+        <select name="status">
+          {% for status in ('available', 'maintenance', 'inactive') %}
+            <option value="{{ status }}" {% if item and item['status'] == status %}selected{% endif %}>{{ status }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <button type="submit">Save equipment</button>
+  </form>
+</section>
+{% endblock %}
+

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Manage equipment{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">Staff dashboard</p><h1>Manage equipment</h1></div>
+  <a class="button" href="{{ url_for('main.add_equipment') }}">Add equipment</a>
+</div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Category</th><th>Location</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for item in equipment %}
+      <tr>
+        <td>{{ item['name'] }}</td><td>{{ item['category'] }}</td><td>{{ item['location'] }}</td>
+        <td><span class="status {{ item['status'] }}">{{ item['status'] }}</span></td>
+        <td><a href="{{ url_for('main.edit_equipment', equipment_id=item['id']) }}">Edit</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
