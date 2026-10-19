@@ -19,6 +19,7 @@ def test_route_scope():
         "/health", "/auth/register", "/auth/login", "/auth/me", "/auth/logout",
         "/", "/login", "/register", "/admin", "/admin/bookings", "/admin/equipment", "/equipment", "/equipment/{equipment_id}/book",
         "/bookings", "/my-bookings", "/bookings/{booking_id}", "/bookings/{booking_id}/cancel",
+        "/admin/review", "/admin/bookings/{booking_id}/approve", "/admin/bookings/{booking_id}/reject",
     }
     with TestClient(app) as client:
         assert client.get("/docs").status_code == 200

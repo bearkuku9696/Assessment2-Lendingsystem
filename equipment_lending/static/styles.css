@@ -40,6 +40,15 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 12px; border-bottom: 1px solid #d7e2dc; }
+td { vertical-align: top; overflow-wrap: anywhere; }
+caption { text-align: left; padding: 16px 0; }
+#review-table table { min-width: 1240px; }
+#review-table td:nth-child(3) { min-width: 190px; }
+#review-table td:nth-child(5) { min-width: 170px; }
+#review-table td:nth-child(7) { white-space: nowrap; }
+.review-cell { min-width: 250px; white-space: pre-wrap; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.reject-button { background: #9c2020; }
 @media (max-width: 900px) {
   .filters { grid-template-columns: 1fr 1fr; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -2,6 +2,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from equipment_lending.model.booking import Booking
+from equipment_lending.model.equipment import Equipment
+from equipment_lending.model.user import User
 
 
 class BookingDao:
@@ -12,7 +14,24 @@ class BookingDao:
         return self.session.scalars(select(Booking).where(Booking.user_id == user_id).order_by(Booking.id.desc())).all()
 
     def find_all(self):
-        return self.session.scalars(select(Booking).order_by(Booking.id.desc())).all()
+        return self.session.execute(self.admin_query().order_by(Booking.id.desc())).mappings().all()
+
+    @staticmethod
+    def admin_query():
+        return select(
+            *Booking.__table__.c,
+            User.name.label("applicant_name"),
+            User.email.label("applicant_email"),
+            Equipment.name.label("equipment_name"),
+        ).join(User, User.id == Booking.user_id).join(Equipment, Equipment.id == Booking.equipment_id)
+
+    def find_for_admin(self, booking_id: int):
+        return self.session.execute(self.admin_query().where(Booking.id == booking_id)).mappings().one()
+
+    def review(self, booking: Booking, status: str, admin_notes: str):
+        booking.status = status
+        booking.admin_notes = admin_notes
+        self.session.flush()
 
     def find_by_id(self, booking_id: int):
         return self.session.get(Booking, booking_id)

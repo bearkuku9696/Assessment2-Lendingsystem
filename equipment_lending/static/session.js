@@ -8,6 +8,7 @@ async function loadSession() {
     }
     if (!response.ok) throw new Error('Unable to verify your session.');
     const user = await response.json();
+    document.getElementById('admin-link').hidden = user.role !== 'admin';
     document.getElementById('sign-in-link').hidden = true;
     document.getElementById('register-link').hidden = true;
     document.getElementById('session-name').textContent = 'Signed in as ' + user.name;

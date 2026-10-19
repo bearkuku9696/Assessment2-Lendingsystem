@@ -1,7 +1,9 @@
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from equipment_lending.dao.booking_dao import BookingDao
 from equipment_lending.dao.equipment_dao import EquipmentDao
+from equipment_lending.database import immediate_transaction
 from equipment_lending.schema.booking import BookingRequest
 
 
@@ -26,6 +28,14 @@ class AccessDeniedError(Exception):
 
 
 class BookingCannotBeCancelled(Exception):
+    pass
+
+
+class BookingCannotBeReviewed(Exception):
+    pass
+
+
+class BookingReviewBusy(Exception):
     pass
 
 
@@ -71,3 +81,30 @@ class BookingService:
             if not self.bookings.cancel(booking_id, user_id):
                 raise BookingCannotBeCancelled
         return booking
+
+    def approve_booking(self, booking_id: int, admin_notes: str):
+        return self._review_booking(booking_id, "approved", admin_notes)
+
+    def reject_booking(self, booking_id: int, admin_notes: str):
+        return self._review_booking(booking_id, "rejected", admin_notes)
+
+    def _review_booking(self, booking_id: int, status: str, admin_notes: str):
+        try:
+            with immediate_transaction(self.session):
+                booking = self.bookings.find_by_id(booking_id)
+                if booking is None:
+                    raise BookingNotFound
+                if booking.status != "pending":
+                    raise BookingCannotBeReviewed
+                if status == "approved":
+                    self.get_available_equipment(booking.equipment_id)
+                    if self.bookings.has_conflict(booking.equipment_id, booking.start_date, booking.end_date):
+                        raise BookingDateConflict
+                self.bookings.review(booking, status, admin_notes)
+                result = self.bookings.find_for_admin(booking_id)
+        except OperationalError as error:
+            # A long-running external writer may exceed SQLite's lock timeout.
+            if (getattr(error.orig, "sqlite_errorcode", 0) & 0xFF) in (5, 6):
+                raise BookingReviewBusy from error
+            raise
+        return result

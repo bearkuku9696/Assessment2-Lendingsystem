@@ -1,19 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Booking administration{% endblock %}
-{% block navigation %}<a href="/">Equipment catalogue</a>{% endblock %}
 {% block content %}
 <h1>Booking administration</h1>
-<p>Signed in as {{ user.name }}</p>
-<div class="table-scroll">
+{% if user %}<p>Signed in as {{ user.name }}</p>{% endif %}
+<p id="review-access" role="status">Sign in with an administrator account to review reservations.</p>
+<button id="refresh-bookings" type="button" hidden>Refresh reservations</button>
+<p id="review-error" role="alert"></p>
+<div class="table-scroll" id="review-table"{% if not user %} hidden{% endif %}>
 <table>
-  <thead><tr><th>Booking</th><th>Member</th><th>Equipment</th><th>Start</th><th>End</th><th>Purpose</th><th>Status</th></tr></thead>
-  <tbody>
+  <caption>All reservations, newest first</caption>
+  <thead><tr><th>Booking</th><th>Applicant</th><th>Email</th><th>Equipment</th><th>Borrowing period</th><th>Purpose</th><th>Status</th><th>Admin notes / review</th></tr></thead>
+  <tbody id="review-bookings">
   {% for booking in bookings %}
-  <tr><td>{{ booking.id }}</td><td>{{ booking.user_id }}</td><td>{{ booking.equipment_id }}</td>
-    <td>{{ booking.start_date }}</td><td>{{ booking.end_date }}</td><td>{{ booking.purpose }}</td><td>{{ booking.status }}</td></tr>
+  <tr><td>{{ booking.id }}</td><td>{{ booking.applicant_name }}</td><td>{{ booking.applicant_email }}</td>
+    <td>{{ booking.equipment_name }}</td><td>{{ booking.start_date }} – {{ booking.end_date }}</td>
+    <td>{{ booking.purpose }}</td><td>{{ booking.status }}</td><td>{{ booking.admin_notes }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+<noscript>JavaScript is required to approve or reject reservations.</noscript>
 {% endblock %}
-{% block scripts %}{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', path='admin.js') }}"></script>
+{% endblock %}

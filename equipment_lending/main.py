@@ -1,3 +1,4 @@
+import mimetypes
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -10,6 +11,9 @@ from equipment_lending.controller.booking_controller import router as booking_ro
 from equipment_lending.controller.equipment_controller import router as equipment_router
 from equipment_lending.controller.authentication_page_controller import router as authentication_page_router
 
+
+# Windows registry associations can otherwise serve .js files as text/plain.
+mimetypes.add_type("text/javascript", ".js")
 
 app = FastAPI(title="Community Equipment Lending System", version="0.1.0")
 app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "static"), name="static")
