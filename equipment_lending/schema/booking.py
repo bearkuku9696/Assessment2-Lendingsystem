@@ -32,3 +32,20 @@ class BookingResponse(BaseModel):
     purpose: str
     status: Literal["pending", "approved", "borrowed", "returned", "rejected", "cancelled"]
     created_at: datetime
+
+
+class ApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    admin_notes: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] = ""
+
+
+class RejectionRequest(ApprovalRequest):
+    admin_notes: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+
+
+class AdminBookingResponse(BookingResponse):
+    applicant_name: str
+    applicant_email: str
+    equipment_name: str
+    admin_notes: str

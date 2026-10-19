@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Annotated
 
 from fastapi import Depends
@@ -26,6 +27,18 @@ def enable_foreign_keys(connection, _record):
 
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+
+
+@contextmanager
+def immediate_transaction(session: Session):
+    """Reserve SQLite's writer before reading data used to decide an update.
+
+    A deferred transaction alone cannot serialize competing approval checks.
+    This lock also works across separate server processes, not just threads.
+    """
+    with session.begin():
+        session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+        yield
 
 
 def get_session() -> Generator[Session, None, None]:

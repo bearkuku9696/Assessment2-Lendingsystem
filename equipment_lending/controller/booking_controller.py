@@ -1,12 +1,12 @@
 from datetime import date, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 
 from equipment_lending.controller.authentication_controller import AdminUser, CurrentUser
 from equipment_lending.database import DatabaseSession
-from equipment_lending.schema.booking import BookingRequest, BookingResponse
+from equipment_lending.schema.booking import AdminBookingResponse, BookingRequest, BookingResponse
 from equipment_lending.service.booking_service import (
     AccessDeniedError, BookingCannotBeCancelled, BookingNotFound, BookingService, EquipmentNotFound,
     EquipmentUnavailable, BookingDateConflict,
@@ -78,6 +78,7 @@ def cancel_booking(booking_id: int, user: CurrentUser, service: BookingDependenc
         raise HTTPException(409, "Only pending or approved bookings can be cancelled.") from None
 
 
-@router.get("/admin/bookings", response_model=list[BookingResponse])
-def admin_bookings(user: AdminUser, service: BookingDependency):
+@router.get("/admin/bookings", response_model=list[AdminBookingResponse])
+def admin_bookings(user: AdminUser, service: BookingDependency, response: Response):
+    response.headers["Cache-Control"] = "no-store"
     return service.find_all()

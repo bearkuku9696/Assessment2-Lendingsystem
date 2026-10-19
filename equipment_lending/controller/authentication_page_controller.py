@@ -7,8 +7,8 @@ from equipment_lending.templating import templates
 
 
 router = APIRouter(tags=["Account pages"])
-# Only the catalogue and booking pages are valid login destinations.
-NextPath = Annotated[str, Query(pattern=r"^(?:/|/equipment/[1-9][0-9]*/book)$")]
+# Restrict login destinations to application pages, never arbitrary URLs.
+NextPath = Annotated[str, Query(pattern=r"^(?:/|/equipment/[1-9][0-9]*/book|/admin/review)$")]
 
 
 @router.get("/login", response_class=HTMLResponse)

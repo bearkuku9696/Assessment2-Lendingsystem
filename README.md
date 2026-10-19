@@ -12,9 +12,11 @@ F08-F11 are implemented on the public equipment catalogue at `/`: case-insensiti
 
 F12-F14 are implemented through the catalogue's **Request booking** link. The application page signs in through the existing login API, then accepts a start date, end date, and purpose. The server rejects starts before today, ends on/before the start date, and empty purposes. Successful submissions display the booking ID and pending status.
 
-Independent `/login` and `/register` pages follow the reference project's forms. Registration collects name, email, and password, then redirects to sign-in. Login returns to the selected equipment application page or the catalogue. Booking approval, collection, and return workflows are outside this implementation.
+Independent `/login` and `/register` pages follow the reference project's forms. Registration collects name, email, and password, then redirects to sign-in. Login returns to the selected equipment application page, catalogue, or administrator review page. Collection and return workflows are outside this implementation.
 
 F14-F18 are enforced when submitting a booking: the start date cannot be before today, the end date must be later than the start date, and equipment must be available. A request overlapping an approved or borrowed booking for the same equipment returns 409 without saving a new row. Date ranges include both endpoints, matching the reference project, so sharing a start/end boundary also conflicts. Pending, cancelled, rejected, and returned bookings do not block new requests. Accepted requests are saved as `pending`; clients cannot set their status.
+
+F19-F25 are implemented for administrator review: list reservations with applicant name/email, equipment name, dates, purpose, status, and admin notes; approve or reject pending requests; and re-check availability and inclusive date conflicts on approval. The conflict check and decision run in one SQLite `BEGIN IMMEDIATE` transaction, serializing concurrent approvals before their first read. Rejection requires a nonempty reason. Other booking states cannot be reviewed again.
 
 ## Run
 
@@ -49,13 +51,14 @@ equipment_lending/
     equipment_controller.py  Equipment listing and administrator creation
     booking_controller.py  Booking creation, ownership, cancellation, and admin listing
   create_admin.py         Local administrator provisioning command
+  migrate_db.py           Repeatable booking approval database upgrade
   service/                Business rules and transactions
   dao/                    Database queries
   model/                  SQLAlchemy models
   schema/                 Pydantic request and response schemas
   templating.py           Jinja2 template configuration
   templates/              HTML pages (base, login, register, catalogue, booking, admin)
-  static/                 Shared CSS and separate authentication/session/booking JavaScript
+  static/                 Shared CSS and authentication/session/booking/admin JavaScript
 tests/                    Framework checks using a temporary database
 run.py                    Local development startup
 ```
@@ -92,6 +95,14 @@ sqlite3 -bail lending.db < migrations/002_equipment_description.sql
 
 This preserves existing equipment and adds an optional description, initially empty. New databases already have this column.
 
+Before running this version against an existing database, stop the server and apply the booking approval upgrade:
+
+```bash
+python -m equipment_lending.migrate_db
+```
+
+This adds `bookings.admin_notes` with an empty default, preserving existing reservations. It uses the configured `DATABASE_PATH` and safely skips the upgrade when the column already exists, including on new databases created with `init_db`. It does not replace the earlier equipment migrations. Alternatively, run `migrations/003_booking_admin_notes.sql` once against a database missing the notes column. The Python command does not require the SQLite CLI and works on Windows.
+
 ## Registration and login
 
 1. In Swagger UI, use `POST /auth/register` with:
@@ -126,8 +137,11 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | Method | Path | Access and purpose |
 | --- | --- | --- |
 | GET | /admin | Administrators: HTML page showing all bookings |
+| GET | /admin/review | Browser review shell; loads data only after administrator authentication |
 | POST | /admin/equipment | Administrators: create equipment with `{"name": "Camera", "category": "Photography", "location": "Room A", "status": "available"}` |
-| GET | /admin/bookings | Administrators: list all bookings |
+| GET | /admin/bookings | Administrators: list bookings including applicant name/email, equipment name, and admin notes |
+| POST | /admin/bookings/{id}/approve | Administrators: approve a pending reservation after conflict and availability checks |
+| POST | /admin/bookings/{id}/reject | Administrators: reject a pending reservation with a reason |
 | GET | / | Public responsive equipment catalogue with search and filters |
 | GET | /login | Sign-in page; returns to the catalogue or selected booking page |
 | GET | /register | Registration page; redirects to sign-in after account creation |
@@ -139,6 +153,12 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | POST | /bookings/{id}/cancel | Booking owner: cancel a pending or approved booking |
 
 The HTML management page uses the same Bearer header as the API. Use Swagger's authorized `GET /admin` request to inspect its HTML response, or a client that sends that header; entering the URL in a browser without credentials returns 401.
+
+For browser use, open `/admin/review` and sign in with an administrator account, or sign in on the catalogue and click **Booking administration**. The review URL serves a shell without reservation data. Its JavaScript sends the tab's Bearer token to protected APIs; ordinary members cannot load reservations or make decisions. Pending rows have **Approve** and **Reject** buttons and a notes field. A successful decision updates that row; **Refresh reservations** reloads other staff decisions. User-entered values are displayed as text, not HTML.
+
+Approval accepts `{"admin_notes": "Optional staff note"}` or `{}`. Rejection accepts `{"admin_notes": "Reason for rejection"}`; blank reasons return 422. Notes are trimmed and limited to 2,000 characters. Notes are exposed only in administrator responses, while owners can see their reservation's resulting status through the existing endpoints.
+
+Both decisions require `pending` (otherwise 409); missing reservations return 404. Approval re-checks that equipment remains `available` and that no `approved` or `borrowed` reservation overlaps the requested dates. Failed decisions leave both the status and notes unchanged. SQLite's writer lock is acquired before reading the reservation and held until the decision commits or rolls back, across threads and processes. If another writer holds the database beyond the lock timeout, review returns 503 with `Retry-After: 1`. Refresh reservations before retrying a request whose result could not be confirmed.
 
 Equipment creation requires nonempty name, category, and location. Status defaults to `available` when omitted; unsupported statuses return 422. `GET /equipment` returns an empty list when no equipment exists.
 
@@ -168,6 +188,8 @@ python -m pytest -q
 Tests cover health, route scope, API documentation, SQLite connectivity, foreign keys, explicit commits, and uncommitted transaction cleanup. Tests do not access the original project's database.
 Authentication tests additionally cover registration, login, profile retrieval, invalid input, duplicate emails, password hashing, token storage and expiration, and user isolation.
 Permission tests cover administrator provisioning, logout revocation and session isolation, member/anonymous rejection on admin routes, owner-only booking reads and cancellation, forged ownership, validation, cancellation persistence, status restrictions, and HTML escaping. All database tests use temporary SQLite databases.
+
+Administrator review tests cover enriched listings, browser login destinations, role enforcement, required rejection reasons, notes persistence, invalid state transitions, inclusive date conflicts, equipment availability, transaction rollback, migration preservation, and concurrent decisions. Overlapping approvals are tested on separate database connections in both DELETE and WAL journal modes, with the first check held while the second approval attempts its transaction.
 
 ## Framework references
 
