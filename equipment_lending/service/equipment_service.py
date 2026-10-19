@@ -8,8 +8,8 @@ class EquipmentService:
         self.session = session
         self.equipment = EquipmentDao(session)
 
-    def find_all(self, search="", category="", status=""):
-        return self.equipment.find_all(search.strip(), category, status)
+    def find_all(self, search="", category="", status="", start_date=None, end_date=None):
+        return self.equipment.find_all(search.strip(), category, status, start_date, end_date)
 
     def find_categories(self):
         return self.equipment.find_categories()

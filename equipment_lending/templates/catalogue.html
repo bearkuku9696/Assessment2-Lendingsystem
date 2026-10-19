@@ -14,6 +14,8 @@
   <label>Status<select name="status"><option value="">All statuses</option>
     {% for value in ('available', 'maintenance', 'inactive') %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ value }}</option>{% endfor %}
   </select></label>
+  <label>Available from<input type="date" name="start_date" value="{{ start_date }}"></label>
+  <label>Available until<input type="date" name="end_date" value="{{ end_date }}"></label>
   <button type="submit">Apply filters</button>
 </form>
 <div class="summary"><span>Equipment found: {{ equipment|length }}</span><a href="/">Clear filters</a></div>
