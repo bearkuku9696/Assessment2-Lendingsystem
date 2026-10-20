@@ -3,6 +3,8 @@ const reviewTable = document.getElementById('review-table');
 const reviewAccess = document.getElementById('review-access');
 const reviewError = document.getElementById('review-error');
 const refreshBookings = document.getElementById('refresh-bookings');
+let activeOperations = 0;
+let loadingReservations = false;
 
 function requireAdminLogin() {
     sessionStorage.removeItem('access_token');
@@ -12,6 +14,7 @@ function requireAdminLogin() {
     document.getElementById('session-name').textContent = '';
     document.getElementById('sign-out').hidden = true;
     document.getElementById('admin-link').hidden = true;
+    document.getElementById('my-bookings-link').hidden = true;
     document.getElementById('sign-in-link').hidden = false;
     document.getElementById('register-link').hidden = false;
     reviewAccess.textContent = 'Your session has expired. Sign in again to review reservations.';
@@ -25,15 +28,22 @@ function bookingRow(booking) {
     const row = document.createElement('tr');
     for (const value of [booking.id, booking.applicant_name, booking.applicant_email,
         booking.equipment_name, booking.start_date + ' – ' + booking.end_date,
-        booking.purpose, booking.status]) {
+        booking.purpose, booking.status + (booking.is_overdue ? ' — Overdue' : '')]) {
         const cell = document.createElement('td');
         cell.textContent = value;
         row.append(cell);
     }
+    if (booking.is_overdue) row.classList.add('overdue-row');
+    const times = document.createElement('td');
+    times.className = 'actual-times';
+    times.textContent = 'Picked up: ' + (booking.picked_up_at ? new Date(booking.picked_up_at).toLocaleString() : '—')
+        + '\nReturned: ' + (booking.returned_at ? new Date(booking.returned_at).toLocaleString() : '—');
+    row.append(times);
     const reviewCell = document.createElement('td');
     reviewCell.className = 'review-cell';
     row.append(reviewCell);
-    if (booking.status !== 'pending') {
+    const availableActions = {pending: ['approve', 'reject'], approved: ['pickup'], borrowed: ['return']}[booking.status] || [];
+    if (!availableActions.length) {
         reviewCell.textContent = booking.admin_notes || '—';
         return row;
     }
@@ -46,15 +56,21 @@ function bookingRow(booking) {
     notes.maxLength = 2000;
     notes.rows = 3;
     notes.value = booking.admin_notes;
-    label.append(notes);
-    fields.append(label);
+    if (booking.status === 'pending') {
+        label.append(notes);
+        fields.append(label);
+    } else {
+        const savedNotes = document.createElement('p');
+        savedNotes.textContent = booking.admin_notes || 'No admin notes.';
+        fields.append(savedNotes);
+    }
     const actions = document.createElement('div');
     actions.className = 'review-actions';
-    for (const action of ['approve', 'reject']) {
+    for (const action of availableActions) {
         const button = document.createElement('button');
         button.type = 'submit';
         button.dataset.action = action;
-        button.textContent = action === 'approve' ? 'Approve' : 'Reject';
+        button.textContent = {approve: 'Approve', reject: 'Reject', pickup: 'Confirm pickup', return: 'Confirm return'}[action];
         if (action === 'reject') button.className = 'reject-button';
         actions.append(button);
     }
@@ -66,7 +82,7 @@ function bookingRow(booking) {
     form.addEventListener('submit', async event => {
         event.preventDefault();
         const action = event.submitter?.dataset.action;
-        if (!action || fields.disabled) return;
+        if (!action || fields.disabled || loadingReservations) return;
         message.textContent = '';
         if (action === 'reject' && !notes.value.trim()) {
             message.textContent = 'Enter a reason before rejecting this reservation.';
@@ -74,12 +90,14 @@ function bookingRow(booking) {
             return;
         }
         fields.disabled = true;
+        activeOperations += 1;
+        refreshBookings.disabled = true;
         try {
             const response = await fetch('/admin/bookings/' + booking.id + '/' + action, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json',
                     Authorization: 'Bearer ' + sessionStorage.getItem('access_token')},
-                body: JSON.stringify({admin_notes: notes.value})
+                body: JSON.stringify(booking.status === 'pending' ? {admin_notes: notes.value} : {})
             });
             if (response.status === 401) { requireAdminLogin(); return; }
             const data = await response.json();
@@ -87,15 +105,22 @@ function bookingRow(booking) {
             row.replaceWith(bookingRow(data));
             reviewAccess.textContent = 'Reservation #' + booking.id + ' ' + data.status + '.';
         } catch (failure) {
-            console.error('Reservation review failed', failure);
+            console.error('Reservation operation failed', failure);
             message.textContent = 'The result could not be confirmed. Refresh reservations before trying again.';
-        } finally { fields.disabled = false; }
+        } finally {
+            fields.disabled = false;
+            activeOperations -= 1;
+            refreshBookings.disabled = activeOperations > 0 || loadingReservations;
+        }
     });
     return row;
 }
 
 async function loadBookings() {
+    if (activeOperations || loadingReservations) return;
+    loadingReservations = true;
     refreshBookings.disabled = true;
+    for (const fields of reviewRows.querySelectorAll('fieldset')) fields.disabled = true;
     reviewError.textContent = '';
     try {
         const response = await fetch('/admin/bookings', {
@@ -105,13 +130,18 @@ async function loadBookings() {
         const data = await response.json();
         if (!response.ok) throw new Error(apiMessage(data));
         reviewRows.replaceChildren(...data.map(bookingRow));
+        document.getElementById('actual-times-heading').textContent = 'Actual times (local)';
         reviewTable.hidden = false;
         refreshBookings.hidden = false;
-        reviewAccess.textContent = data.length ? 'Review pending reservations below. Rejection requires a reason.'
+        reviewAccess.textContent = data.length ? 'Review requests, confirm pickup or return. Actual times are shown in your local timezone.'
             : 'No reservations have been submitted.';
     } catch (failure) {
         reviewError.textContent = failure.message || 'Unable to load reservations. Please refresh to try again.';
-    } finally { refreshBookings.disabled = false; }
+    } finally {
+        loadingReservations = false;
+        refreshBookings.disabled = false;
+        for (const fields of reviewRows.querySelectorAll('fieldset')) fields.disabled = false;
+    }
 }
 
 refreshBookings.addEventListener('click', loadBookings);

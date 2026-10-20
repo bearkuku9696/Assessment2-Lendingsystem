@@ -38,6 +38,7 @@ def test_registration_confirmation_and_catalogue_links(auth):
     ("/static/session.js", "javascript"),
     ("/static/booking.js", "javascript"),
     ("/static/admin.js", "javascript"),
+    ("/static/my_bookings.js", "javascript"),
 ])
 def test_page_assets_are_served(auth, path, content_type):
     client, _ = auth

@@ -9,7 +9,7 @@ from equipment_lending.database import DatabaseSession
 from equipment_lending.schema.booking import AdminBookingResponse, BookingRequest, BookingResponse
 from equipment_lending.service.booking_service import (
     AccessDeniedError, BookingCannotBeCancelled, BookingNotFound, BookingService, EquipmentNotFound,
-    EquipmentUnavailable, BookingDateConflict,
+    EquipmentUnavailable, BookingDateConflict, BookingOperationBusy,
 )
 from equipment_lending.templating import templates
 
@@ -52,8 +52,17 @@ def create_booking(data: BookingRequest, user: CurrentUser, service: BookingDepe
 
 
 @router.get("/my-bookings", response_model=list[BookingResponse])
-def my_bookings(user: CurrentUser, service: BookingDependency):
+def my_bookings(user: CurrentUser, service: BookingDependency, response: Response):
+    response.headers["Cache-Control"] = "no-store"
     return service.find_for_user(user.id)
+
+
+@router.get("/account/bookings", response_class=HTMLResponse)
+def my_bookings_page(request: Request):
+    # Public shell; the existing owner-filtered API provides private data.
+    return templates.TemplateResponse(request=request, name="my_bookings.html",
+                                      context={"next_path": "/account/bookings"},
+                                      headers={"Cache-Control": "no-store"})
 
 
 @router.get("/bookings/{booking_id}", response_model=BookingResponse)
@@ -76,6 +85,9 @@ def cancel_booking(booking_id: int, user: CurrentUser, service: BookingDependenc
         raise HTTPException(403, "You can only cancel your own bookings.") from None
     except BookingCannotBeCancelled:
         raise HTTPException(409, "Only pending or approved bookings can be cancelled.") from None
+    except BookingOperationBusy:
+        raise HTTPException(503, "The database is busy. Please retry the cancellation.",
+                            headers={"Retry-After": "1"}) from None
 
 
 @router.get("/admin/bookings", response_model=list[AdminBookingResponse])

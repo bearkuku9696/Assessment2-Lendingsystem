@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}My reservations{% endblock %}
+{% block content %}
+<h1>My reservations</h1>
+<p id="bookings-access" role="status">Sign in to view and cancel your reservations.</p>
+<button id="refresh-my-bookings" type="button" hidden>Refresh reservations</button>
+<p id="bookings-error" role="alert"></p>
+<section id="my-bookings-list" class="reservation-list" aria-label="Your reservations"></section>
+<noscript>JavaScript is required to view and cancel reservations.</noscript>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', path='my_bookings.js') }}"></script>
+{% endblock %}

@@ -9,12 +9,14 @@
 <div class="table-scroll" id="review-table"{% if not user %} hidden{% endif %}>
 <table>
   <caption>All reservations, newest first</caption>
-  <thead><tr><th>Booking</th><th>Applicant</th><th>Email</th><th>Equipment</th><th>Borrowing period</th><th>Purpose</th><th>Status</th><th>Admin notes / review</th></tr></thead>
+  <thead><tr><th>Booking</th><th>Applicant</th><th>Email</th><th>Equipment</th><th>Borrowing period</th><th>Purpose</th><th>Status</th><th id="actual-times-heading">Actual times (UTC)</th><th>Admin notes / actions</th></tr></thead>
   <tbody id="review-bookings">
   {% for booking in bookings %}
-  <tr><td>{{ booking.id }}</td><td>{{ booking.applicant_name }}</td><td>{{ booking.applicant_email }}</td>
+  <tr{% if booking.is_overdue %} class="overdue-row"{% endif %}><td>{{ booking.id }}</td><td>{{ booking.applicant_name }}</td><td>{{ booking.applicant_email }}</td>
     <td>{{ booking.equipment_name }}</td><td>{{ booking.start_date }} – {{ booking.end_date }}</td>
-    <td>{{ booking.purpose }}</td><td>{{ booking.status }}</td><td>{{ booking.admin_notes }}</td></tr>
+    <td>{{ booking.purpose }}</td><td>{{ booking.status }}{% if booking.is_overdue %} — Overdue{% endif %}</td>
+    <td class="actual-times">Picked up: {{ booking.picked_up_at or '—' }}
+Returned: {{ booking.returned_at or '—' }}</td><td>{{ booking.admin_notes }}</td></tr>
   {% endfor %}
   </tbody>
 </table>

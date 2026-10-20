@@ -12,11 +12,13 @@ F08-F11 are implemented on the public equipment catalogue at `/`: case-insensiti
 
 F12-F14 are implemented through the catalogue's **Request booking** link. The application page signs in through the existing login API, then accepts a start date, end date, and purpose. The server rejects starts before today, ends on/before the start date, and empty purposes. Successful submissions display the booking ID and pending status.
 
-Independent `/login` and `/register` pages follow the reference project's forms. Registration collects name, email, and password, then redirects to sign-in. Login returns to the selected equipment application page, catalogue, or administrator review page. Collection and return workflows are outside this implementation.
+Independent `/login` and `/register` pages follow the reference project's forms. Registration collects name, email, and password, then redirects to sign-in. Login returns to the selected equipment application page, catalogue, administrator review page, or personal reservations page.
 
 F14-F18 are enforced when submitting a booking: the start date cannot be before today, the end date must be later than the start date, and equipment must be available. A request overlapping an approved or borrowed booking for the same equipment returns 409 without saving a new row. Date ranges include both endpoints, matching the reference project, so sharing a start/end boundary also conflicts. Pending, cancelled, rejected, and returned bookings do not block new requests. Accepted requests are saved as `pending`; clients cannot set their status.
 
 F19-F25 are implemented for administrator review: list reservations with applicant name/email, equipment name, dates, purpose, status, and admin notes; approve or reject pending requests; and re-check availability and inclusive date conflicts on approval. The conflict check and decision run in one SQLite `BEGIN IMMEDIATE` transaction, serializing concurrent approvals before their first read. Rejection requires a nonempty reason. Other booking states cannot be reviewed again.
+
+F26-F32 are implemented for pickup, return, cancellation, and overdue display. Administrators confirm `approved -> borrowed -> returned` and the server records actual pickup/return timestamps. Owners can cancel only `pending` or `approved` reservations from **My reservations**. Borrowed reservations cannot be cancelled. A borrowed reservation is displayed as overdue when the application server's current date is later than its expected return date; overdue is a computed flag, not a stored reservation status.
 
 ## Run
 
@@ -32,6 +34,8 @@ python run.py
 
 - Swagger UI: http://127.0.0.1:8000/docs
 - Equipment catalogue: http://127.0.0.1:8000/
+- Personal reservations: http://127.0.0.1:8000/account/bookings
+- Administrator review and handover: http://127.0.0.1:8000/admin/review
 - OpenAPI schema: http://127.0.0.1:8000/openapi.json
 - Application health: http://127.0.0.1:8000/health
 
@@ -51,14 +55,14 @@ equipment_lending/
     equipment_controller.py  Equipment listing and administrator creation
     booking_controller.py  Booking creation, ownership, cancellation, and admin listing
   create_admin.py         Local administrator provisioning command
-  migrate_db.py           Repeatable booking approval database upgrade
+  migrate_db.py           Repeatable booking approval and handover database upgrades
   service/                Business rules and transactions
   dao/                    Database queries
   model/                  SQLAlchemy models
   schema/                 Pydantic request and response schemas
   templating.py           Jinja2 template configuration
-  templates/              HTML pages (base, login, register, catalogue, booking, admin)
-  static/                 Shared CSS and authentication/session/booking/admin JavaScript
+  templates/              HTML pages (base, login, register, catalogue, booking, my_bookings, admin)
+  static/                 Shared CSS and authentication/session/booking/my_bookings/admin JavaScript
 tests/                    Framework checks using a temporary database
 run.py                    Local development startup
 ```
@@ -95,13 +99,13 @@ sqlite3 -bail lending.db < migrations/002_equipment_description.sql
 
 This preserves existing equipment and adds an optional description, initially empty. New databases already have this column.
 
-Before running this version against an existing database, stop the server and apply the booking approval upgrade:
+Before running this version against an existing database, stop the server and apply the booking upgrades:
 
 ```bash
 python -m equipment_lending.migrate_db
 ```
 
-This adds `bookings.admin_notes` with an empty default, preserving existing reservations. It uses the configured `DATABASE_PATH` and safely skips the upgrade when the column already exists, including on new databases created with `init_db`. It does not replace the earlier equipment migrations. Alternatively, run `migrations/003_booking_admin_notes.sql` once against a database missing the notes column. The Python command does not require the SQLite CLI and works on Windows.
+This adds missing `bookings.admin_notes`, `picked_up_at`, and `returned_at` columns, preserving existing reservations and notes. New time fields remain NULL for historical rows because actual times are unknown. It uses the configured `DATABASE_PATH`, safely skips existing columns (including on new databases created with `init_db`), and can resume a partially upgraded schema without overwriting timestamps. It does not replace the earlier equipment migrations. Alternatively, run `migrations/003_booking_admin_notes.sql` once if notes are missing, followed by `migrations/004_booking_handover_times.sql` once if both actual-time columns are missing. Use the Python command for partially upgraded databases. The Python command does not require the SQLite CLI and works on Windows.
 
 ## Registration and login
 
@@ -142,6 +146,8 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | GET | /admin/bookings | Administrators: list bookings including applicant name/email, equipment name, and admin notes |
 | POST | /admin/bookings/{id}/approve | Administrators: approve a pending reservation after conflict and availability checks |
 | POST | /admin/bookings/{id}/reject | Administrators: reject a pending reservation with a reason |
+| POST | /admin/bookings/{id}/pickup | Administrators: mark an approved reservation as borrowed and record actual pickup time |
+| POST | /admin/bookings/{id}/return | Administrators: mark a borrowed reservation as returned and record actual return time |
 | GET | / | Public responsive equipment catalogue with search and filters |
 | GET | /login | Sign-in page; returns to the catalogue or selected booking page |
 | GET | /register | Registration page; redirects to sign-in after account creation |
@@ -149,6 +155,7 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | GET | /equipment | Public list with ID, name, description, category, location, and status |
 | POST | /bookings | Signed-in users: create their own pending booking |
 | GET | /my-bookings | Signed-in users: list only their own bookings |
+| GET | /account/bookings | Browser shell for the owner's reservations, actual times, overdue labels, and cancellation |
 | GET | /bookings/{id} | Booking owner: view details |
 | POST | /bookings/{id}/cancel | Booking owner: cancel a pending or approved booking |
 
@@ -159,6 +166,12 @@ For browser use, open `/admin/review` and sign in with an administrator account,
 Approval accepts `{"admin_notes": "Optional staff note"}` or `{}`. Rejection accepts `{"admin_notes": "Reason for rejection"}`; blank reasons return 422. Notes are trimmed and limited to 2,000 characters. Notes are exposed only in administrator responses, while owners can see their reservation's resulting status through the existing endpoints.
 
 Both decisions require `pending` (otherwise 409); missing reservations return 404. Approval re-checks that equipment remains `available` and that no `approved` or `borrowed` reservation overlaps the requested dates. Failed decisions leave both the status and notes unchanged. SQLite's writer lock is acquired before reading the reservation and held until the decision commits or rolls back, across threads and processes. If another writer holds the database beyond the lock timeout, review returns 503 with `Retry-After: 1`. Refresh reservations before retrying a request whose result could not be confirmed.
+
+Approved rows show **Confirm pickup** and borrowed rows show **Confirm return**. Both APIs accept an empty JSON object `{}`. Clients cannot set the resulting status, pickup time, or return time; additional request fields return 422. Only administrators can perform either operation. Invalid transitions, including repeated pickup/return, return 409; missing reservations return 404. No extra restriction on collection dates is imposed. Status and the corresponding actual time are saved together in one immediate transaction, so a simultaneous pickup and owner cancellation cannot both succeed. Database lock timeouts return 503 with `Retry-After: 1`; failed operations roll back all changes.
+
+Actual timestamps are recorded as UTC and returned as ISO 8601 strings with an explicit UTC offset (`Z`); no actual time is invented for old records. Browser pages format these values in the viewer's local timezone. The protected server-rendered `/admin` fallback labels its unconverted timestamps as UTC. Every booking response includes nullable `picked_up_at`/`returned_at` fields and a computed `is_overdue` boolean. A still-borrowed item is not overdue on its end date, becomes overdue the next day, and stops displaying overdue once returned. Refresh the page/list to recompute the flag after a date change.
+
+Open `/account/bookings`, sign in, or select **My reservations** in the navigation to view your own reservations. The page loads the existing owner-filtered API with the tab's Bearer token; its public HTML shell contains no booking data. Pending and approved cards show **Cancel reservation**, while other states do not. Both admin and member pages disable duplicate operations while a request is in progress, retain existing history, and display errors when another user changes the state first. Expired sessions clear private data and require sign-in again.
 
 Equipment creation requires nonempty name, category, and location. Status defaults to `available` when omitted; unsupported statuses return 422. `GET /equipment` returns an empty list when no equipment exists.
 
@@ -190,6 +203,8 @@ Authentication tests additionally cover registration, login, profile retrieval, 
 Permission tests cover administrator provisioning, logout revocation and session isolation, member/anonymous rejection on admin routes, owner-only booking reads and cancellation, forged ownership, validation, cancellation persistence, status restrictions, and HTML escaping. All database tests use temporary SQLite databases.
 
 Administrator review tests cover enriched listings, browser login destinations, role enforcement, required rejection reasons, notes persistence, invalid state transitions, inclusive date conflicts, equipment availability, transaction rollback, migration preservation, and concurrent decisions. Overlapping approvals are tested on separate database connections in both DELETE and WAL journal modes, with the first check held while the second approval attempts its transaction.
+
+Handover tests cover the complete approved/borrowed/returned workflow, server UTC timestamps, role restrictions, forged timestamp/status rejection, state transition rules, duplicate operations, rollback, overdue date boundaries in all states, legacy returns with unknown pickup time, pickup/cancellation races in DELETE and WAL modes, database lock timeouts, personal page login destinations, and repeatable/partial database upgrades that preserve history.
 
 ## Framework references
 

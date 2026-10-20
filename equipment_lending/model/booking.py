@@ -21,4 +21,6 @@ class Booking(Base):
     purpose: Mapped[str] = mapped_column(String(1000))
     status: Mapped[str] = mapped_column(String(20), default="pending")
     admin_notes: Mapped[str] = mapped_column(String(2000), default="", server_default="")
+    picked_up_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    returned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())

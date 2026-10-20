@@ -33,6 +33,16 @@ class BookingDao:
         booking.admin_notes = admin_notes
         self.session.flush()
 
+    def record_pickup(self, booking: Booking, picked_up_at):
+        booking.status = "borrowed"
+        booking.picked_up_at = picked_up_at
+        self.session.flush()
+
+    def record_return(self, booking: Booking, returned_at):
+        booking.status = "returned"
+        booking.returned_at = returned_at
+        self.session.flush()
+
     def find_by_id(self, booking_id: int):
         return self.session.get(Booking, booking_id)
 
