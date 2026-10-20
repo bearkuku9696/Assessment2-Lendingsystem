@@ -1,6 +1,7 @@
-from sqlalchemy import or_, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
+from equipment_lending.model.booking import Booking
 from equipment_lending.model.equipment import Equipment
 
 
@@ -8,7 +9,7 @@ class EquipmentDao:
     def __init__(self, session: Session):
         self.session = session
 
-    def find_all(self, search="", category="", status=""):
+    def find_all(self, search="", category="", status="", start_date=None, end_date=None):
         query = select(Equipment)
         if search:
             query = query.where(or_(
@@ -19,6 +20,16 @@ class EquipmentDao:
             query = query.where(Equipment.category == category)
         if status:
             query = query.where(Equipment.status == status)
+        if start_date is not None and end_date is not None:
+            query = query.where(
+                Equipment.status == "available",
+                ~exists().where(
+                    Booking.equipment_id == Equipment.id,
+                    Booking.status.in_(("approved", "borrowed")),
+                    Booking.start_date <= end_date,
+                    Booking.end_date >= start_date,
+                ),
+            )
         return self.session.scalars(query.order_by(Equipment.category, Equipment.name, Equipment.id)).all()
 
     def find_categories(self):

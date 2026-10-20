@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 import sqlite3
 
@@ -5,6 +6,8 @@ import pytest
 from sqlalchemy import select
 
 from equipment_lending.model.equipment import Equipment
+from equipment_lending.model.booking import Booking
+from equipment_lending.model.user import User
 from equipment_lending.service.authentication_service import AuthenticationService
 
 
@@ -147,6 +150,47 @@ def test_catalogue_page_filters_and_retains_selection(searchable_equipment):
     assert 'value="kit"' in response.text
     assert "Photography</option>" in response.text
     assert "width=device-width" in response.text
+
+
+def test_period_filter_excludes_overlapping_bookings(auth):
+    client, factory = auth
+    with factory.begin() as session:
+        user = User(name="Member", email="member@example.org", password_hash="hash")
+        camera = Equipment(name="Camera", category="Photography", location="Room A",
+                           status="available", description="Digital camera")
+        session.add(camera)
+        session.add(user)
+        session.flush()
+        session.add(Booking(
+            user_id=user.id,
+            equipment_id=camera.id,
+            start_date=date(2030, 1, 10),
+            end_date=date(2030, 1, 12),
+            purpose="Event",
+            status="approved",
+        ))
+
+    response = client.get("/equipment", params={
+        "start_date": "2030-01-11", "end_date": "2030-01-13",
+    })
+    assert response.status_code == 200
+    assert [item["name"] for item in response.json()] == []
+
+    response = client.get("/", params={
+        "start_date": "2030-01-13", "end_date": "2030-01-15",
+    })
+    assert response.status_code == 200
+    assert "<h2>Camera</h2>" in response.text
+
+
+@pytest.mark.parametrize("params", [
+    {"start_date": "2030-01-10"},
+    {"end_date": "2030-01-10"},
+    {"start_date": "2030-01-12", "end_date": "2030-01-10"},
+])
+def test_invalid_period_filter_is_rejected(auth, params):
+    client, _ = auth
+    assert client.get("/equipment", params=params).status_code == 422
 
 
 def test_catalogue_empty_results_and_escaped_search(searchable_equipment):

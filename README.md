@@ -8,7 +8,7 @@ F01-F05 (users and permissions) are implemented: registration, login/logout, mem
 
 F06-F07 are implemented through `GET /equipment`: each item includes its ID, name, category, location, and status, ordered by category and name. Status values follow the reference project: `available`, `maintenance`, and `inactive`. All three statuses are included in the list.
 
-F08-F11 are implemented on the public equipment catalogue at `/`: case-insensitive name/description search, category filtering, status filtering, and a responsive card layout. Filters combine and remain selected after submission. The catalogue uses one column on phones, two on tablets, and three on desktop.
+F08-F11 are implemented on the public equipment catalogue at `/`: case-insensitive name/description search, category filtering, status filtering, period availability filtering, and a responsive card layout. Filters combine and remain selected after submission. The catalogue uses one column on phones, two on tablets, and three on desktop.
 
 F12-F14 are implemented through the catalogue's **Request booking** link. The application page signs in through the existing login API, then accepts a start date, end date, and purpose. The server rejects starts before today, ends on/before the start date, and empty purposes. Successful submissions display the booking ID and pending status.
 
@@ -175,7 +175,7 @@ Open `/account/bookings`, sign in, or select **My reservations** in the navigati
 
 Equipment creation requires nonempty name, category, and location. Status defaults to `available` when omitted; unsupported statuses return 422. `GET /equipment` returns an empty list when no equipment exists.
 
-Equipment creation also accepts an optional `description` (up to 2,000 characters). Both `/` and `/equipment` accept `search`, `category`, and `status` query parameters, for example `/equipment?search=kit&category=Audio&status=maintenance`. Search matches part of the name or description, ignoring case. Categories match exactly; status must be empty, `available`, `maintenance`, or `inactive`. Equipment browsing is public, matching the reference project; booking and administration permissions are unchanged.
+Equipment creation also accepts an optional `description` (up to 2,000 characters). Both `/` and `/equipment` accept `search`, `category`, and `status` query parameters, for example `/equipment?search=kit&category=Audio&status=maintenance`. Search matches part of the name or description, ignoring case. Categories match exactly; status must be empty, `available`, `maintenance`, or `inactive`. Equipment browsing is public, matching the reference project; booking and administration permissions are unchanged. Supplying `start_date` and `end_date` to `/` or `/equipment` shows only available equipment with no approved or borrowed booking overlapping that period. Both dates are required and the end date must be later than the start date.
 
 Create equipment as an administrator first. Then log in as a member and submit a booking with its equipment ID, today's date or a future date, a later end date, and a nonempty purpose:
 
