@@ -6,7 +6,7 @@
   <h1>Equipment catalogue</h1>
   <p>Find equipment for your next community activity.</p>
 </section>
-<form class="filters" method="get" action="/" aria-label="Filter equipment">
+<form class="filters" method="get" action="/equipment" aria-label="Filter equipment">
   <label>Search<input type="search" name="search" value="{{ search }}" placeholder="Name or description"></label>
   <label>Category<select name="category"><option value="">All categories</option>
     {% for value in categories %}<option value="{{ value }}"{% if value == category %} selected{% endif %}>{{ value }}</option>{% endfor %}
@@ -18,7 +18,7 @@
   <label>Available until<input type="date" name="end_date" value="{{ end_date }}"></label>
   <button type="submit">Apply filters</button>
 </form>
-<div class="summary"><span>Equipment found: {{ equipment|length }}</span><a href="/">Clear filters</a></div>
+<div class="summary"><span>Equipment found: {{ equipment|length }}</span><a href="/equipment">Clear filters</a></div>
 <section class="grid" aria-label="Equipment results">
   {% for item in equipment %}
   <article class="card">
