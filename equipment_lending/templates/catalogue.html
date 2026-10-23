@@ -14,8 +14,14 @@
   <label>Status<select name="status"><option value="">All statuses</option>
     {% for value in ('available', 'maintenance', 'inactive') %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ value }}</option>{% endfor %}
   </select></label>
-  <label>Available from<input type="date" name="start_date" value="{{ start_date }}"></label>
-  <label>Available until<input type="date" name="end_date" value="{{ end_date }}"></label>
+  <label>Available from<span class="date-field">
+    <input type="date" name="start_date" value="{{ start_date }}">
+    <span class="date-display" aria-hidden="true">dd/mm/yyyy</span>
+  </span></label>
+  <label>Available until<span class="date-field">
+    <input type="date" name="end_date" value="{{ end_date }}">
+    <span class="date-display" aria-hidden="true">dd/mm/yyyy</span>
+  </span></label>
   <button type="submit">Apply filters</button>
 </form>
 <div class="summary"><span>Equipment found: {{ equipment|length }}</span><a href="/equipment">Clear filters</a></div>
@@ -25,7 +31,10 @@
     <div class="tags"><span>{{ item.category }}</span><span class="status {{ item.status }}">{{ item.status }}</span></div>
     <h2>{{ item.name }}</h2><p>{{ item.description }}</p>
     <p class="location">Collection: {{ item.location }}</p>
-    {% if item.status == 'available' %}<a class="book" href="/equipment/{{ item.id }}/book">Request booking</a>{% endif %}
+    {% if item.status == 'available' %}
+      <a class="book booking-link" data-booking-href="/equipment/{{ item.id }}/book"
+         aria-disabled="true">Request booking</a>
+    {% endif %}
   </article>
   {% else %}
   <p class="empty">No equipment matches your search. Try changing or clearing the filters.</p>

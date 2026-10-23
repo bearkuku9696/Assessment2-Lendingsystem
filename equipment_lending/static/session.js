@@ -14,8 +14,31 @@ async function loadSession() {
     document.getElementById('register-link').hidden = true;
     document.getElementById('session-name').textContent = 'Signed in as ' + user.name;
     document.getElementById('sign-out').hidden = false;
+    document.querySelectorAll('.booking-link').forEach(link => {
+        link.href = link.dataset.bookingHref;
+        link.setAttribute('aria-disabled', 'false');
+    });
     return user;
 }
+document.querySelectorAll('.booking-link').forEach(link => {
+    link.addEventListener('click', event => {
+        if (link.getAttribute('aria-disabled') === 'true') {
+            event.preventDefault();
+            window.alert('Please sign in before requesting a booking.');
+        }
+    });
+});
+document.querySelectorAll('.filters input[type="date"]').forEach(input => {
+    const display = input.parentElement.querySelector('.date-display');
+    const updateDisplay = () => {
+        const [year, month, day] = input.value.split('-');
+        display.textContent = input.value ? `${day}/${month}/${year}` : 'dd/mm/yyyy';
+        display.classList.toggle('has-value', input.value !== '');
+    };
+    updateDisplay();
+    input.addEventListener('change', updateDisplay);
+    input.addEventListener('click', () => input.showPicker());
+});
 window.sessionReady = loadSession();
 window.sessionReady.catch(failure => {
     console.error('Session check failed', failure);
