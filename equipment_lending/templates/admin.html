@@ -9,7 +9,7 @@
 <div class="table-scroll" id="review-table"{% if not user %} hidden{% endif %}>
 <table>
   <caption>All reservations, newest first</caption>
-  <thead><tr><th>Booking</th><th>Applicant</th><th>Email</th><th>Equipment</th><th>Borrowing period</th><th>Purpose</th><th>Status</th><th id="actual-times-heading">Actual times (UTC)</th><th>Admin notes / actions</th></tr></thead>
+  <thead><tr><th>Booking</th><th>Applicant</th><th>Email</th><th>Equipment</th><th>Borrowing period</th><th>Purpose</th><th>Booking status</th><th id="actual-times-heading">Actual times (UTC)</th><th>Admin notes / actions</th></tr></thead>
   <tbody id="review-bookings">
   {% for booking in bookings %}
   <tr{% if booking.is_overdue %} class="overdue-row"{% endif %}><td>{{ booking.id }}</td><td>{{ booking.applicant_name }}</td><td>{{ booking.applicant_email }}</td>

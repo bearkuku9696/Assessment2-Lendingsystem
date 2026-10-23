@@ -21,4 +21,4 @@ class EquipmentResponse(BaseModel):
     description: str
     category: str
     location: str
-    status: Literal["available", "maintenance", "inactive"]
+    status: Literal["available", "unavailable", "maintenance", "inactive"]

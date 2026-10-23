@@ -37,9 +37,13 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .tags { display: flex; flex-wrap: wrap; gap: 8px; font-size: .8rem; }
 .tags span { border-radius: 5px; padding: 3px 8px; background: #edf1ee; }
 .tags .available { background: #dcefe4; color: #195039; }
+.tags .unavailable { background: #f4dddd; color: #772626; }
 .tags .maintenance { background: #fff0cc; color: #765000; }
 .tags .inactive { background: #e9e9ed; color: #50505a; }
 .location { color: #50665d; margin-bottom: 0; }
+.admin-booking-details { margin-top: 16px; padding: 12px; border-left: 4px solid #772626; background: #fff5f5; }
+.admin-booking-details h3 { margin: 0 0 8px; font-size: 1rem; }
+.admin-booking-details ul { margin: 0; padding-left: 20px; }
 .book { display: inline-block; margin-top: 18px; padding: 10px 16px; background: #23614d; color: white; border-radius: 6px; text-decoration: none; }
 .empty { grid-column: 1 / -1; padding: 28px; border: 1px dashed #879d93; border-radius: 12px; }
 .table-scroll { overflow-x: auto; }

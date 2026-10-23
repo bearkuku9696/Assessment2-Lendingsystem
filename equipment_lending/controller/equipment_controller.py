@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BeforeValidator
 
@@ -20,13 +20,14 @@ def get_equipment_service(session: DatabaseSession):
 
 
 EquipmentDependency = Annotated[EquipmentService, Depends(get_equipment_service)]
-StatusFilter = Literal["", "available", "maintenance", "inactive"]
+StatusFilter = Literal["", "available", "unavailable", "maintenance", "inactive"]
 DateFilter = Annotated[date | None, BeforeValidator(lambda value: None if value == "" else value)]
 
 
 @router.get("/equipment", response_model=list[EquipmentResponse])
 def list_equipment(
     request: Request,
+    response: Response,
     service: EquipmentDependency,
     search: str = "",
     category: str = "",
@@ -35,6 +36,7 @@ def list_equipment(
     end_date: DateFilter = None,
 ):
     _validate_period(start_date, end_date)
+    response.headers["Cache-Control"] = "no-store"
     equipment = service.find_all(search, category, status, start_date, end_date)
     if "text/html" in request.headers.get("accept", ""):
         return _catalogue_response(
@@ -64,7 +66,7 @@ def _catalogue_response(request, service, equipment, search, category, status, s
         "categories": service.find_categories(), "search": search, "category": category, "status": status,
         "start_date": start_date.isoformat() if start_date else "",
         "end_date": end_date.isoformat() if end_date else "",
-    })
+    }, headers={"Cache-Control": "no-store"})
 
 
 @router.post("/admin/equipment", response_model=EquipmentResponse, status_code=201)

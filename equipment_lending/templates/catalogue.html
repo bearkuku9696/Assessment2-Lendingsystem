@@ -12,7 +12,7 @@
     {% for value in categories %}<option value="{{ value }}"{% if value == category %} selected{% endif %}>{{ value }}</option>{% endfor %}
   </select></label>
   <label>Status<select name="status"><option value="">All statuses</option>
-    {% for value in ('available', 'maintenance', 'inactive') %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ value }}</option>{% endfor %}
+    {% for value in ('available', 'unavailable', 'maintenance', 'inactive') %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ value }}</option>{% endfor %}
   </select></label>
   <label>Available from<span class="date-field">
     <input type="date" name="start_date" value="{{ start_date }}">
@@ -25,12 +25,14 @@
   <button type="submit">Apply filters</button>
 </form>
 <div class="summary"><span>Equipment found: {{ equipment|length }}</span><a href="/equipment">Clear filters</a></div>
+<p id="admin-booking-error" role="alert"></p>
 <section class="grid" aria-label="Equipment results">
   {% for item in equipment %}
-  <article class="card">
+  <article class="card" data-equipment-id="{{ item.id }}">
     <div class="tags"><span>{{ item.category }}</span><span class="status {{ item.status }}">{{ item.status }}</span></div>
     <h2>{{ item.name }}</h2><p>{{ item.description }}</p>
     <p class="location">Collection: {{ item.location }}</p>
+    <div class="admin-booking-details" hidden></div>
     {% if item.status == 'available' %}
       <a class="book booking-link" data-booking-href="/equipment/{{ item.id }}/book"
          aria-disabled="true">Request booking</a>
@@ -40,4 +42,8 @@
   <p class="empty">No equipment matches your search. Try changing or clearing the filters.</p>
   {% endfor %}
 </section>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', path='catalogue.js') }}"></script>
 {% endblock %}

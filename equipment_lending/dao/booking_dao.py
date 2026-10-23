@@ -56,9 +56,17 @@ class BookingDao:
             ).limit(1)
         ) is not None
 
+    def has_active_booking(self, equipment_id: int) -> bool:
+        return self.session.scalar(
+            select(Booking.id).where(
+                Booking.equipment_id == equipment_id,
+                Booking.status.in_(("pending", "approved", "borrowed")),
+            ).limit(1)
+        ) is not None
+
     def create(self, user_id: int, equipment_id: int, start_date, end_date, purpose: str):
         booking = Booking(user_id=user_id, equipment_id=equipment_id, start_date=start_date,
-                          end_date=end_date, purpose=purpose)
+                          end_date=end_date, purpose=purpose, status="pending")
         self.session.add(booking)
         self.session.flush()
         return booking

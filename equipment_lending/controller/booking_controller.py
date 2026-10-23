@@ -49,6 +49,9 @@ def create_booking(data: BookingRequest, user: CurrentUser, service: BookingDepe
         raise HTTPException(409, "This equipment is not currently available for booking.") from None
     except BookingDateConflict:
         raise HTTPException(409, "The equipment is already booked for part of this period.") from None
+    except BookingOperationBusy:
+        raise HTTPException(503, "The database is busy. Please retry the booking request.",
+                            headers={"Retry-After": "1"}) from None
 
 
 @router.get("/my-bookings", response_model=list[BookingResponse])

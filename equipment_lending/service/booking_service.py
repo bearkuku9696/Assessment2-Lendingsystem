@@ -63,6 +63,12 @@ class BookingService:
         return self.bookings.find_all()
 
     def get_available_equipment(self, equipment_id: int):
+        equipment = self._get_operationally_available_equipment(equipment_id)
+        if self.bookings.has_active_booking(equipment_id):
+            raise EquipmentUnavailable
+        return equipment
+
+    def _get_operationally_available_equipment(self, equipment_id: int):
         equipment = self.equipment.find_by_id(equipment_id)
         if equipment is None:
             raise EquipmentNotFound
@@ -79,7 +85,7 @@ class BookingService:
         return booking
 
     def create_booking(self, user_id: int, data: BookingRequest):
-        with self.session.begin():
+        with self._write_transaction():
             self.get_available_equipment(data.equipment_id)
             if self.bookings.has_conflict(data.equipment_id, data.start_date, data.end_date):
                 raise BookingDateConflict
@@ -139,7 +145,7 @@ class BookingService:
             if booking.status != "pending":
                 raise BookingCannotBeReviewed
             if status == "approved":
-                self.get_available_equipment(booking.equipment_id)
+                self._get_operationally_available_equipment(booking.equipment_id)
                 if self.bookings.has_conflict(booking.equipment_id, booking.start_date, booking.end_date):
                     raise BookingDateConflict
             self.bookings.review(booking, status, admin_notes)
