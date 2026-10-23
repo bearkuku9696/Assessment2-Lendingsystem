@@ -134,7 +134,7 @@ After initializing the database, create an administrator locally:
 python -m equipment_lending.create_admin --name "Administrator" --email "admin@example.org"
 ```
 
-The command prompts for a password and confirmation without displaying either. It validates registration fields and refuses duplicate emails; it does not promote existing accounts. Public registration always creates members and rejects a supplied `role`.
+The command creates the account with the default password `Admin123!`. Supply `--password "YourPassword"` to use a different password. It validates registration fields and refuses duplicate emails; it does not promote existing accounts. Public registration always creates members and rejects a supplied `role`.
 
 Log in using the administrator credentials and authorize Swagger UI. All protected routes require an `Authorization: Bearer <access_token>` header. Unauthenticated requests return 401; authenticated members receive 403 on administrator routes.
 
