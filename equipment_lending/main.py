@@ -1,4 +1,5 @@
 import mimetypes
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -10,12 +11,20 @@ from equipment_lending.controller.admin_controller import router as admin_router
 from equipment_lending.controller.booking_controller import router as booking_router
 from equipment_lending.controller.equipment_controller import router as equipment_router
 from equipment_lending.controller.authentication_page_controller import router as authentication_page_router
+from equipment_lending.init_db import init_db
 
 
 # Windows registry associations can otherwise serve .js files as text/plain.
 mimetypes.add_type("text/javascript", ".js")
 
-app = FastAPI(title="Community Equipment Lending System", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="Community Equipment Lending System", version="0.1.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "static"), name="static")
 app.include_router(router)
 app.include_router(authentication_router)

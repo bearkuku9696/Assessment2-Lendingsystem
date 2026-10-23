@@ -8,7 +8,7 @@ from equipment_lending.model.booking import Booking
 
 
 def init_db():
-    """Create application tables without replacing existing data."""
+    """Create application tables and apply required additive schema updates."""
     Base.metadata.create_all(engine, tables=[User.__table__, LoginSession.__table__, Equipment.__table__, Booking.__table__])
     with engine.begin() as connection:
         booking_columns = {column["name"] for column in inspect(connection).get_columns("bookings")}
@@ -16,6 +16,10 @@ def init_db():
             connection.exec_driver_sql(
                 "ALTER TABLE bookings ADD COLUMN admin_notes VARCHAR(2000) NOT NULL DEFAULT ''"
             )
+        if "picked_up_at" not in booking_columns:
+            connection.exec_driver_sql("ALTER TABLE bookings ADD COLUMN picked_up_at DATETIME")
+        if "returned_at" not in booking_columns:
+            connection.exec_driver_sql("ALTER TABLE bookings ADD COLUMN returned_at DATETIME")
 
 
 if __name__ == "__main__":

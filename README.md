@@ -81,7 +81,7 @@ Use `DatabaseSession` as a FastAPI dependency when implementing endpoints. Keep 
 
 The default database file is `lending.db` in this project. To change it, copy `.env.example` to `.env` and set `DATABASE_PATH`. Relative paths resolve against the project directory. The parent directory must already exist. This foundation supports SQLite only and enables foreign key constraints on each connection.
 
-Connections open on first database use. Run `python -m equipment_lending.init_db` before starting the server to create `users`, `login_sessions`, `equipment`, and `bookings`. Existing installations must run this command again to add the equipment and booking tables. This command preserves existing rows and can run again safely. It does not migrate existing schemas. The original project's database remains untouched.
+The application synchronizes its required database schema at startup. Missing tables are created from the SQLAlchemy models, and supported additive upgrades are applied without replacing existing rows. You can also run `python -m equipment_lending.init_db` manually to perform the same operation without starting the server. The original project's database remains untouched.
 
 For the previous equipment table containing only `id` and `name`, run the following migration once before starting the updated application. It applies to an empty equipment table (the state of this project's local database before F06-F07). If equipment rows already exist, supply their real category and location values in a data migration first; no placeholder values are generated.
 
@@ -99,13 +99,13 @@ sqlite3 -bail lending.db < migrations/002_equipment_description.sql
 
 This preserves existing equipment and adds an optional description, initially empty. New databases already have this column.
 
-Before running this version against an existing database, stop the server and apply the booking upgrades:
+Booking upgrades run automatically when the application starts. To apply them before starting the server, run:
 
 ```bash
 python -m equipment_lending.migrate_db
 ```
 
-This adds missing `bookings.admin_notes`, `picked_up_at`, and `returned_at` columns, preserving existing reservations and notes. New time fields remain NULL for historical rows because actual times are unknown. It uses the configured `DATABASE_PATH`, safely skips existing columns (including on new databases created with `init_db`), and can resume a partially upgraded schema without overwriting timestamps. It does not replace the earlier equipment migrations. Alternatively, run `migrations/003_booking_admin_notes.sql` once if notes are missing, followed by `migrations/004_booking_handover_times.sql` once if both actual-time columns are missing. Use the Python command for partially upgraded databases. The Python command does not require the SQLite CLI and works on Windows.
+Startup and this command add missing `bookings.admin_notes`, `picked_up_at`, and `returned_at` columns while preserving existing reservations and notes. New time fields remain NULL for historical rows because actual times are unknown. They use the configured `DATABASE_PATH` and safely skip existing columns. These upgrades do not replace the earlier equipment migrations.
 
 ## Registration and login
 
