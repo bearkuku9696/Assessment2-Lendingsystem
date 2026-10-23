@@ -9,7 +9,7 @@ from equipment_lending.controller.authentication_controller import AdminUser
 from equipment_lending.templating import templates
 from equipment_lending.database import DatabaseSession
 from equipment_lending.schema.equipment import EquipmentRequest, EquipmentResponse
-from equipment_lending.service.equipment_service import EquipmentService
+from equipment_lending.service.equipment_service import EquipmentNotFound, EquipmentService
 
 
 router = APIRouter(tags=["Equipment"])
@@ -72,6 +72,16 @@ def _catalogue_response(request, service, equipment, search, category, status, s
 @router.post("/admin/equipment", response_model=EquipmentResponse, status_code=201)
 def create_equipment(data: EquipmentRequest, user: AdminUser, service: EquipmentDependency):
     return service.create(data.name, data.category, data.location, data.status, data.description)
+
+
+@router.put("/admin/equipment/{equipment_id}", response_model=EquipmentResponse)
+def update_equipment(equipment_id: int, data: EquipmentRequest, user: AdminUser,
+                     service: EquipmentDependency):
+    try:
+        return service.update(equipment_id, data.name, data.category, data.location,
+                              data.status, data.description)
+    except EquipmentNotFound:
+        raise HTTPException(404, "Equipment was not found.") from None
 
 
 def _validate_period(start_date: date | None, end_date: date | None):

@@ -143,6 +143,7 @@ Log in using the administrator credentials and authorize Swagger UI. All protect
 | GET | /admin | Administrators: HTML page showing all bookings |
 | GET | /admin/review | Browser review shell; loads data only after administrator authentication |
 | POST | /admin/equipment | Administrators: create equipment with `{"name": "Camera", "category": "Photography", "location": "Room A", "status": "available"}` |
+| PUT | /admin/equipment/{equipment_id} | Administrators: replace equipment details and set its status to `available`, `maintenance`, or `inactive` |
 | GET | /admin/bookings | Administrators: list bookings including applicant name/email, equipment name, and admin notes |
 | POST | /admin/bookings/{id}/approve | Administrators: approve a pending reservation after conflict and availability checks |
 | POST | /admin/bookings/{id}/reject | Administrators: reject a pending reservation with a reason |

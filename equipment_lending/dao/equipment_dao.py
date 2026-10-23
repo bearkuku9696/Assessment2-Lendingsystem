@@ -55,3 +55,13 @@ class EquipmentDao:
         self.session.add(equipment)
         self.session.flush()
         return equipment
+
+    def update(self, equipment: Equipment, name: str, category: str, location: str,
+               status: str, description: str):
+        equipment.name = name
+        equipment.category = category
+        equipment.location = location
+        equipment.status = status
+        equipment.description = description
+        self.session.flush()
+        return equipment

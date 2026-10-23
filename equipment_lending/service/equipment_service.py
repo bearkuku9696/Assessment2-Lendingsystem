@@ -3,6 +3,10 @@ from sqlalchemy.orm import Session
 from equipment_lending.dao.equipment_dao import EquipmentDao
 
 
+class EquipmentNotFound(Exception):
+    pass
+
+
 class EquipmentService:
     def __init__(self, session: Session):
         self.session = session
@@ -17,4 +21,13 @@ class EquipmentService:
     def create(self, name: str, category: str, location: str, status: str, description: str):
         with self.session.begin():
             equipment = self.equipment.create(name, category, location, status, description)
+        return equipment
+
+    def update(self, equipment_id: int, name: str, category: str, location: str,
+               status: str, description: str):
+        with self.session.begin():
+            equipment = self.equipment.find_by_id(equipment_id)
+            if equipment is None:
+                raise EquipmentNotFound
+            self.equipment.update(equipment, name, category, location, status, description)
         return equipment
